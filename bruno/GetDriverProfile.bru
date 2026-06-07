@@ -1,0 +1,24 @@
+meta {
+  name: GetDriverProfile
+  type: http
+  seq: 5
+}
+
+get {
+  url: https://driver.live.boltsvc.net/driver/getDriverProfile?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  version: {{VERSION}}
+  country: {{COUNTRY}}
+  language: {{LANGUAGE}}
+  deviceType: {{DEVICE_TYPE}}
+  deviceId: {{DEVICE_ID}}
+  device_os_version: {{DEVICE_OS_VERSION}}
+}
+
+headers {
+  ~Content-Type: application/json
+}

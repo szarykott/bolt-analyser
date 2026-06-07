@@ -1,0 +1,27 @@
+meta {
+  name: GetAccessToken
+  type: http
+  seq: 3
+}
+
+post {
+  url: https://driver.live.boltsvc.net/driver/getAccessToken
+  body: formUrlEncoded
+  auth: inherit
+}
+
+params:query {
+  ~version: {{VERSION}}
+}
+
+body:form-urlencoded {
+  refresh_token: gD7ufmsimSTu29icptVH3tiNns5i5Hf4wRRNhYMtuSMNmvMWyo6Q92uVnUYJ3wFztNKbyMAV7UJtpqlVBJYTqLlZpJR3CphctnnOW1TYAb2pSHGMuZhSzxFomEC6VJi39C23ALzI084JLrDQitxUnVtUUw42V0o3z90KQt3SkFdoTthXgQe7d1vfZxT9AM9tTQwKoAlCTVX9cKYn8KyfwrD3qRxiw7v5aLgPr6rxr8oaORzvRp5PJ3HybJvPsca
+  ~device_uid: {{DEVICE_ID}}
+  ~device_name: {{DEVICE_NAME}}
+  ~device_os_version: {{DEVICE_OS_VERSION}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

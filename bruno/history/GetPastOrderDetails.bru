@@ -1,0 +1,34 @@
+meta {
+  name: GetPastOrderDetails
+  type: http
+  seq: 3
+}
+
+post {
+  url: https://driver.live.boltsvc.net/driver/getPastOrderDetails?country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&version={{VERSION}}
+  body: json
+  auth: inherit
+}
+
+params:query {
+  country: {{COUNTRY}}
+  language: {{LANGUAGE}}
+  deviceType: {{DEVICE_TYPE}}
+  deviceId: {{DEVICE_ID}}
+  device_os_version: {{DEVICE_OS_VERSION}}
+  version: {{VERSION}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+          "order_handle": {
+            "order_id": 2443655264,
+            "city_id": 211,
+            "order_system": "taxi"
+          }
+  }
+}
