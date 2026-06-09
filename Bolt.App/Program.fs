@@ -2,6 +2,7 @@
 open System
 open System.Net.Http
 open System.Threading
+open TaskResultBuilder
 
 let cfg: ApiConfig =
     { BaseUrl = new Uri "https://driver.live.boltsvc.net"
@@ -17,7 +18,19 @@ let cfg: ApiConfig =
       }
     }
 
-let x = Api.sendMagicLink cfg "radoslaw.edward.kot@gmail.com" CancellationToken.None
-match x.Result with
+printfn "Welcome to Bolt scraper and data analyser!"
+printf "Input email address you are using for Bolt Driver app: "
+
+let email = Console.ReadLine()
+
+let tokenCallback = fun () ->
+    printf "Input tracking URL from email you just received: "
+    Console.ReadLine()
+
+let result = taskResult {
+  do! LowLevelApi.initialize cfg email tokenCallback CancellationToken.None
+}
+
+match result.Result with
 | Ok _ -> printfn "all good"
 | Error e -> printfn $"{e}"

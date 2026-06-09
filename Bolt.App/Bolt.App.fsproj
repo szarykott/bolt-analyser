@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Bolt.App</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="ces\TaskResultBuilder.fs" />
+    <Compile Include="ces\ResultBuilder.fs" />
+    <Compile Include="bolt/Tokens.fs" />
+    <Compile Include="bolt\LowLevelBoltApi.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+</Project>

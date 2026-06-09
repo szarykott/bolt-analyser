@@ -3,6 +3,7 @@ namespace Bolt
 open System
 open System.Net.Http
 open System.Net
+open System.Text.Json.Serialization
 
 type SuccessResponse<'T> = { Message: string; Data: 'T }
 
@@ -33,31 +34,27 @@ type ApiConfig =
       Tokens: TokenStore
       RubbishData: RubbishBoltData }
 
-module Api =
+module LowLevelApi =
     open System.Threading.Tasks
     open System.Threading
     open System.Text.Json
     open System.Collections.Generic
     open TaskResultBuilder
 
-    let taskResult = TaskResultBuilder()
-
-    type ResponseCode = { Code: int }
+    type ResponseCode = {
+        [<JsonPropertyName("code")>]
+        Code: int
+    }
 
     let private rawSend<'T>
         (cfg: ApiConfig)
-        (build: unit -> HttpRequestMessage)
+        (req: HttpRequestMessage)
         (ct: CancellationToken)
         : Task<Result<'T, ApiError>> =
         task {
             try
-                let tokens = TokenStore.snapshot cfg.Tokens
-
-                let req = build ()
-                let (AccessToken(v, e)) = tokens.Access
-                req.Headers.Authorization <- Headers.AuthenticationHeaderValue("Bearer", v)
-
                 use! resp = cfg.HttpClient.SendAsync(req, ct)
+                
                 let! body = resp.Content.ReadAsStringAsync ct
 
                 if resp.IsSuccessStatusCode then
@@ -76,6 +73,11 @@ module Api =
                 return Error(NetworkError ex)
         }
 
+    let private withAuthentication (config: ApiConfig) (request: HttpRequestMessage) : HttpRequestMessage =
+        let tokens = TokenStore.snapshot config.Tokens
+        let (AccessToken(v, _)) = tokens.Access
+        request.Headers.Authorization <- Headers.AuthenticationHeaderValue("Bearer", v)
+        request
 
     let sendMagicLink
         (cfg: ApiConfig)
@@ -95,12 +97,15 @@ module Api =
                                              KeyValuePair("device_name", cfg.RubbishData.DeviceName)
                                              KeyValuePair("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
 
-            let! resp = rawSend<unit> cfg (fun () -> req) ct
+            let! resp = rawSend<unit> cfg req ct
 
             resp |> ignore
         }
 
-    type RefreshTokenResponse = { RefreshToken: string }
+    type RefreshTokenResponse = {
+        [<JsonPropertyName("refresh_token")>]
+        RefreshToken: string
+    }
 
     let private authenticateWithMagicLink
         (cfg: ApiConfig)
@@ -122,14 +127,17 @@ module Api =
                                              KeyValuePair("device_name", cfg.RubbishData.DeviceName)
                                              KeyValuePair("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
 
-            let! resp = rawSend<RefreshTokenResponse> cfg (fun () -> req) ct
+            let! resp = rawSend<RefreshTokenResponse> cfg req ct
 
             return RefreshToken resp.RefreshToken
         }
 
 
     type AccessTokenResponse =
-        { AccessToken: string
+        {
+          [<JsonPropertyName("access_token")>]
+          AccessToken: string
+          [<JsonPropertyName("expires_timestamp")>]
           ExpiresTimestamp: int64
           ExpiresInSeconds: int32
           NextUpdateInSeconds: int32
@@ -148,7 +156,7 @@ module Api =
 
             req.Content <- new FormUrlEncodedContent [| KeyValuePair("refresh_token", v) |]
 
-            let! resp = rawSend<AccessTokenResponse> cfg (fun () -> req) ct
+            let! resp = rawSend<AccessTokenResponse> cfg req ct
 
             return AccessToken(resp.AccessToken, resp.ExpiresTimestamp |> DateTimeOffset.FromUnixTimeSeconds)
         }
@@ -166,18 +174,27 @@ module Api =
 
                 if expires < DateTimeOffset.UtcNow then
                     let! newToken = getAccessToken cfg refresh ct
-                    newToken |> TokenStore.store cfg.Tokens
+                    newToken |> TokenStore.storeAccessToken cfg.Tokens
 
             finally
                 cfg.Tokens.Lock.Release() |> ignore
         }
 
-    let send<'T> (cfg: ApiConfig) (build: unit -> HttpRequestMessage) ct : Task<Result<'T, ApiError>> =
+    let initialize (config: ApiConfig) (email: string) (trackingUrlCallback: unit -> string) (ct : CancellationToken) : Task<Result<unit, ApiError>> =
+        taskResult {
+            do! sendMagicLink config email ct
+            let! token = trackingUrlCallback () |> MagicLink.getMagicLinkTokenFromTrackingUrl |> Result.mapError AuthError
+            let! refreshToken = authenticateWithMagicLink config token ct
+            let! accessToken = getAccessToken config refreshToken ct
+            TokenStore.store config.Tokens accessToken refreshToken
+        }
+    
+    let send<'T> (cfg: ApiConfig) (request: HttpRequestMessage) ct : Task<Result<'T, ApiError>> =
         task {
-            match! rawSend<'T> cfg build ct with
+            match! rawSend<'T> cfg (request |> withAuthentication cfg) ct with
             | Error(AuthError _) ->
                 match! refreshTokens cfg ct with
-                | Ok _ -> return! rawSend<'T> cfg build ct // retry once
+                | Ok _ -> return! rawSend<'T> cfg (request |> withAuthentication cfg) ct // retry once
                 | Error e -> return Error e
             | other -> return other
         }
