@@ -1,0 +1,27 @@
+meta {
+  name: AuthenticateWithMagicLink
+  type: http
+  seq: 3
+}
+
+post {
+  url: https://driver.live.boltsvc.net/driver/authenticateWithMagicLink?version={{VERSION}}
+  body: formUrlEncoded
+  auth: none
+}
+
+params:query {
+  version: {{VERSION}}
+}
+
+body:form-urlencoded {
+  device_uid: {{DEVICE_ID}}
+  device_name: {{DEVICE_NAME}}
+  device_os_version: {{DEVICE_OS_VERSION}}
+  token: hHEtxkdgqzFdsjLSLPIgIIdc0GVKSNtUiR6iBVtYMhdDlZ5BUIeLbGe93ys4cLeLLRtdcIVB55o8qJLy6g3fNeiFgLzQD1hfHgQagpW2glC6aIogNlWzeZunGgne9E9o0a5spO8w9VbHmqAC6gDv6xMEANScsxFOjbSBG9OY5JJVKwikgSlXSqy3paZlgHVlhK0P0zUrcW2vMopG2LagMS9pEr4jE1SgMIiVEWUQzwQvkDDREwB84My2GsgRDpu
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
