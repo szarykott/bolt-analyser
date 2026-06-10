@@ -1,18 +1,32 @@
-namespace Bolt
+module Bolt.App.bolt.LowLevelApi
 
 open System
 open System.Net.Http
 open System.Net
 open System.Text.Json.Serialization
+open Bolt.App.bolt.Models
+open Bolt.App.bolt.Tokens
 
-type SuccessResponse<'T> = { Message: string; Data: 'T }
+type SuccessResponse<'T> =
+    { [<JsonPropertyName("message")>]
+      Message: string
+      [<JsonPropertyName("data")>]
+      Data: 'T }
 
-type ValidationError = { Error: string; Property: string }
+type ValidationError =
+    { [<JsonPropertyName("error")>]
+      Error: string
+      [<JsonPropertyName("property")>]
+      Property: string }
 
 type ErrorResponse =
-    { Code: int
+    { [<JsonPropertyName("error")>]
+      Code: int
+      [<JsonPropertyName("message")>]
       Message: string
+      [<JsonPropertyName("error_hint")>]
       ErrorHint: string option
+      [<JsonPropertyName("validation_errors")>]
       ValidationErrors: ValidationError list option }
 
 type ApiError =
@@ -22,39 +36,26 @@ type ApiError =
     | AuthError of string
     | HttpError of status: HttpStatusCode * body: string
 
-type RubbishBoltData =
-    { DeviceUid: string
-      DeviceName: string
-      DeviceOsVersion: string
-      Version: string }
-
-type ApiConfig =
-    { BaseUrl: Uri
-      HttpClient: HttpClient
-      Tokens: TokenStore
-      RubbishData: RubbishBoltData }
-
 module LowLevelApi =
     open System.Threading.Tasks
     open System.Threading
     open System.Text.Json
-    open System.Collections.Generic
     open TaskResultBuilder
+    open Bolt.App.bolt.Http
 
-    type ResponseCode = {
-        [<JsonPropertyName("code")>]
-        Code: int
-    }
+    type ResponseCode =
+        { [<JsonPropertyName("code")>]
+          Code: int }
 
     let private rawSend<'T>
         (cfg: ApiConfig)
-        (req: HttpRequestMessage)
         (ct: CancellationToken)
+        (req: HttpRequestMessage)
         : Task<Result<'T, ApiError>> =
         task {
             try
                 use! resp = cfg.HttpClient.SendAsync(req, ct)
-                
+
                 let! body = resp.Content.ReadAsStringAsync ct
 
                 if resp.IsSuccessStatusCode then
@@ -79,33 +80,23 @@ module LowLevelApi =
         request.Headers.Authorization <- Headers.AuthenticationHeaderValue("Bearer", v)
         request
 
-    let sendMagicLink
-        (cfg: ApiConfig)
-        (email: string)
-        (ct: CancellationToken)
-        : Task<Result<unit, ApiError>> =
+    let private sendMagicLink (cfg: ApiConfig) (email: string) (ct: CancellationToken) : Task<Result<unit, ApiError>> =
         taskResult {
-            let req =
-                new HttpRequestMessage(
-                    HttpMethod.Post,
-                    Uri(cfg.BaseUrl, $"driver/sendMagicLink?version={cfg.RubbishData.Version}")
-                )
-            
-            req.Content <-
-                new FormUrlEncodedContent [| KeyValuePair("email", email)
-                                             KeyValuePair("device_uid", cfg.RubbishData.DeviceUid)
-                                             KeyValuePair("device_name", cfg.RubbishData.DeviceName)
-                                             KeyValuePair("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
-
-            let! resp = rawSend<unit> cfg req ct
-
-            resp |> ignore
+            do!
+                RequestBuilder.newRequest
+                    HttpMethod.Post
+                    (Uri(cfg.BaseUrl, $"driver/sendMagicLink?version={cfg.RubbishData.Version}"))
+                |> RequestBuilder.withUrlFromEncodedBody
+                    [| ("email", email)
+                       ("device_uid", cfg.RubbishData.DeviceUid)
+                       ("device_name", cfg.RubbishData.DeviceName)
+                       ("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
+                |> rawSend<unit> cfg ct
         }
 
-    type RefreshTokenResponse = {
-        [<JsonPropertyName("refresh_token")>]
-        RefreshToken: string
-    }
+    type RefreshTokenResponse =
+        { [<JsonPropertyName("refresh_token")>]
+          RefreshToken: string }
 
     let private authenticateWithMagicLink
         (cfg: ApiConfig)
@@ -113,29 +104,25 @@ module LowLevelApi =
         (ct: CancellationToken)
         : Task<Result<RefreshToken, ApiError>> =
         taskResult {
-            let req =
-                new HttpRequestMessage(
-                    HttpMethod.Post,
-                    Uri(cfg.BaseUrl, $"driver/authenticateWithMagicLink?version={cfg.RubbishData.Version}")
-                )
-
             let (MagicLinkToken v) = token
 
-            req.Content <-
-                new FormUrlEncodedContent [| KeyValuePair("token", v)
-                                             KeyValuePair("device_uid", cfg.RubbishData.DeviceUid)
-                                             KeyValuePair("device_name", cfg.RubbishData.DeviceName)
-                                             KeyValuePair("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
-
-            let! resp = rawSend<RefreshTokenResponse> cfg req ct
+            let! resp =
+                RequestBuilder.newRequest
+                    HttpMethod.Post
+                    (Uri(cfg.BaseUrl, $"driver/authenticateWithMagicLink?version={cfg.RubbishData.Version}"))
+                |> RequestBuilder.withUrlFromEncodedBody
+                    [| ("token", v)
+                       ("device_uid", cfg.RubbishData.DeviceUid)
+                       ("device_name", cfg.RubbishData.DeviceName)
+                       ("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
+                |> rawSend<RefreshTokenResponse> cfg ct
 
             return RefreshToken resp.RefreshToken
         }
 
 
     type AccessTokenResponse =
-        {
-          [<JsonPropertyName("access_token")>]
+        { [<JsonPropertyName("access_token")>]
           AccessToken: string
           [<JsonPropertyName("expires_timestamp")>]
           ExpiresTimestamp: int64
@@ -149,14 +136,12 @@ module LowLevelApi =
         (ct: CancellationToken)
         : Task<Result<AccessToken, ApiError>> =
         taskResult {
-            let req =
-                new HttpRequestMessage(HttpMethod.Post, Uri(cfg.BaseUrl, "driver/getAccessToken"))
-
             let (RefreshToken v) = token
 
-            req.Content <- new FormUrlEncodedContent [| KeyValuePair("refresh_token", v) |]
-
-            let! resp = rawSend<AccessTokenResponse> cfg req ct
+            let! resp =
+                RequestBuilder.newRequest HttpMethod.Post (Uri(cfg.BaseUrl, "driver/getAccessToken"))
+                |> RequestBuilder.withUrlFromEncodedBody [| ("refresh_token", v) |]
+                |> rawSend<AccessTokenResponse> cfg ct
 
             return AccessToken(resp.AccessToken, resp.ExpiresTimestamp |> DateTimeOffset.FromUnixTimeSeconds)
         }
@@ -180,21 +165,34 @@ module LowLevelApi =
                 cfg.Tokens.Lock.Release() |> ignore
         }
 
-    let initialize (config: ApiConfig) (email: string) (trackingUrlCallback: unit -> string) (ct : CancellationToken) : Task<Result<unit, ApiError>> =
-        taskResult {
-            do! sendMagicLink config email ct
-            let! token = trackingUrlCallback () |> MagicLink.getMagicLinkTokenFromTrackingUrl |> Result.mapError AuthError
-            let! refreshToken = authenticateWithMagicLink config token ct
-            let! accessToken = getAccessToken config refreshToken ct
-            TokenStore.store config.Tokens accessToken refreshToken
-        }
+    let initialize
+        (config: ApiConfig)
+        (email: string)
+        (trackingUrlCallback: unit -> string)
+        (ct: CancellationToken)
+        : Task<Result<unit, ApiError>> =
+        if TokenStore.isEmpty config.Tokens then
+            taskResult {
+                do! sendMagicLink config email ct
     
-    let send<'T> (cfg: ApiConfig) (request: HttpRequestMessage) ct : Task<Result<'T, ApiError>> =
+                let! token =
+                    trackingUrlCallback ()
+                    |> MagicLink.getMagicLinkTokenFromTrackingUrl
+                    |> Result.mapError AuthError
+    
+                let! refreshToken = authenticateWithMagicLink config token ct
+                let! accessToken = getAccessToken config refreshToken ct
+                TokenStore.store config.Tokens accessToken refreshToken
+            }
+        else
+            refreshTokens config ct
+
+    let send<'T> cfg ct request: Task<Result<'T, ApiError>> =
         task {
-            match! rawSend<'T> cfg (request |> withAuthentication cfg) ct with
+            match! request |> withAuthentication cfg |> rawSend<'T> cfg ct with
             | Error(AuthError _) ->
                 match! refreshTokens cfg ct with
-                | Ok _ -> return! rawSend<'T> cfg (request |> withAuthentication cfg) ct // retry once
+                | Ok _ -> return! request |> withAuthentication cfg |> rawSend<'T> cfg ct // retry once
                 | Error e -> return Error e
             | other -> return other
         }

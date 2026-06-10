@@ -9,9 +9,22 @@
   <ItemGroup>
     <Compile Include="ces\TaskResultBuilder.fs" />
     <Compile Include="ces\ResultBuilder.fs" />
+    <Compile Include="ces\OptionBuilder.fs" />
+    <Compile Include="bolt\Http.fs" />
     <Compile Include="bolt/Tokens.fs" />
-    <Compile Include="bolt\LowLevelBoltApi.fs" />
+    <Compile Include="bolt\Models.fs" />
+    <Compile Include="bolt\LowLevelApi.fs" />
+    <Compile Include="bolt\BoltApi.fs" />
+    <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include=".gitignore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.SystemTextJson" Version="1.4.36" />
   </ItemGroup>
 
 </Project>

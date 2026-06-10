@@ -2,3 +2,4 @@
 **/obj
 **/.docs
 .idea
+**/appsettings.json
