@@ -8,7 +8,7 @@ module RequestBuilder =
     let newRequest method (uri : Uri) =
         new HttpRequestMessage(method, uri)
     
-    let withUrlFromEncodedBody data (request: HttpRequestMessage) =
+    let withUrlFormEncodedBody data (request: HttpRequestMessage) =
         let pairs = data |> Seq.map (fun (x,y) -> KeyValuePair(x,y)) 
         request.Content <- new FormUrlEncodedContent(pairs)
         request

@@ -22,3 +22,155 @@ params:query {
 headers {
   ~Content-Type: application/json
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/driver/getPickupDistanceConfig?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+    }
+  
+    headers: {
+      ~Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:42:19 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b1f129c65d5a-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "items": [
+              {
+                "map_value_in_m": 2000,
+                "setting_value_in_km": 2,
+                "label": "2KM",
+                "is_selected": true
+              },
+              {
+                "map_value_in_m": 3000,
+                "setting_value_in_km": 3,
+                "label": "3KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 4000,
+                "setting_value_in_km": 4,
+                "label": "4KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 5000,
+                "setting_value_in_km": 5,
+                "label": "5KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 6000,
+                "setting_value_in_km": 6,
+                "label": "6KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 8000,
+                "setting_value_in_km": 8,
+                "label": "8KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 10000,
+                "setting_value_in_km": 10,
+                "label": "10KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 12000,
+                "setting_value_in_km": 12,
+                "label": "12KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 14000,
+                "setting_value_in_km": 14,
+                "label": "14KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 16000,
+                "setting_value_in_km": 16,
+                "label": "16KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 18000,
+                "setting_value_in_km": 18,
+                "label": "18KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 22000,
+                "setting_value_in_km": 22,
+                "label": "22KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 26000,
+                "setting_value_in_km": 26,
+                "label": "26KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 30000,
+                "setting_value_in_km": 30,
+                "label": "30KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 35000,
+                "setting_value_in_km": 35,
+                "label": "35KM",
+                "is_selected": false
+              },
+              {
+                "map_value_in_m": 40000,
+                "setting_value_in_km": 40,
+                "label": "40KM",
+                "is_selected": false
+              }
+            ]
+          }
+        }
+      '''
+    }
+  }
+}

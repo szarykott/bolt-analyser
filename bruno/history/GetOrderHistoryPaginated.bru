@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: https://driver.live.boltsvc.net/orderDriver/v1/getOrderHistoryPaginated?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}
+  url: https://driver.live.boltsvc.net/orderDriver/v1/getOrderHistoryPaginated?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&cursor=1780832416
   body: none
   auth: inherit
 }
@@ -17,8 +17,608 @@ params:query {
   deviceType: {{DEVICE_TYPE}}
   deviceId: {{DEVICE_ID}}
   device_os_version: {{DEVICE_OS_VERSION}}
+  cursor: 1780832416
 }
 
 headers {
   Content-Type: application/json
+}
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/orderDriver/v1/getOrderHistoryPaginated?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+    }
+  
+    headers: {
+      Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:41:23 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b08fbcba1bf9-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "orders": [
+              {
+                "order_handle": {
+                  "order_id": 2542565760,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Jana Kilińskiego, Kraków, Polska",
+                "created": "2026.06.07 14:23",
+                "created_timestamp": 1780842227,
+                "payment_type": "inapp",
+                "payment_method_id": "e1c3f53a-d11d-457a-aacb-c6fadc7b1e76",
+                "payment_method_type": "card",
+                "price_str": "15,84 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780842244,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542549003,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Wrocławska, Kraków 30-011, Polska",
+                "created": "2026.06.07 14:06",
+                "created_timestamp": 1780841170,
+                "payment_type": "inapp",
+                "payment_method_id": "applepay",
+                "payment_method_type": "applepay",
+                "price_str": "14,47 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780841207,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542524214,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Św. Tomasza, Kraków 31-027, Polska",
+                "created": "2026.06.07 13:39",
+                "created_timestamp": 1780839599,
+                "payment_type": "inapp",
+                "payment_method_id": "applepay",
+                "payment_method_type": "applepay",
+                "price_str": "11,01 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780839648,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542518901,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Cystersów, Kraków 00-000, Polska",
+                "created": "2026.06.07 13:34",
+                "created_timestamp": 1780839266,
+                "payment_type": "inapp",
+                "payment_method_id": "applepay",
+                "payment_method_type": "applepay",
+                "price_str": "11,88 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780839281,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542502672,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Osiedle Jagiellońskie, Kraków 31-835, Polska",
+                "created": "2026.06.07 13:17",
+                "created_timestamp": 1780838252,
+                "payment_type": "inapp",
+                "payment_method_id": "applepay",
+                "payment_method_type": "applepay",
+                "price_str": "17,42 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780838266,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542500731,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Osiedle Kolorowe, Kraków 00-000, Polska",
+                "created": "2026.06.07 13:15",
+                "created_timestamp": 1780838127,
+                "payment_type": "cash",
+                "payment_method_id": "cash",
+                "payment_method_type": "default",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "driver_rejected",
+                "status_html": "<color type=\"reference\" value=\"content.danger-primary\">Odrzucone przez Ciebie</color>"
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542500621,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Na Kopiec, Kocmyrzów-Luborzyca 32-010, Polska",
+                "created": "2026.06.07 13:15",
+                "created_timestamp": 1780838119,
+                "payment_type": "cash",
+                "payment_method_id": "cash",
+                "payment_method_type": "default",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "driver_rejected",
+                "status_html": "<color type=\"reference\" value=\"content.danger-primary\">Odrzucone przez Ciebie</color>"
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542472091,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Krakowska, Wielka Wieś 32-085, Polska",
+                "created": "2026.06.07 12:45",
+                "created_timestamp": 1780836345,
+                "payment_type": "inapp",
+                "payment_method_id": "manual",
+                "payment_method_type": "adyen_blik",
+                "price_str": "23,98 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780836425,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542431743,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Aleja Jana Pawła Ii, Kraków 31-982, Polska",
+                "created": "2026.06.07 12:03",
+                "created_timestamp": 1780833811,
+                "payment_type": "cash",
+                "payment_method_id": "cash",
+                "payment_method_type": "default",
+                "price_str": "39,93 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780833822,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/cash_driver.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542408677,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Osiedle Tysiąclecia, Kraków 00-000, Polska",
+                "created": "2026.06.07 11:39",
+                "created_timestamp": 1780832375,
+                "payment_type": "inapp",
+                "payment_method_id": "googlepay",
+                "payment_method_type": "googlepay",
+                "price_str": "14,94 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780832420,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              }
+            ],
+            "cursor": "1780832416"
+          }
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: example with cursor
+  
+  request: {
+    url: https://driver.live.boltsvc.net/orderDriver/v1/getOrderHistoryPaginated?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&cursor=1780832416
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+      cursor: 1780832416
+    }
+  
+    headers: {
+      Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:43:14 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b3462d680659-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "orders": [
+              {
+                "order_handle": {
+                  "order_id": 2542390530,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Fabryczna, Kraków 31-553, Polska",
+                "created": "2026.06.07 11:20",
+                "created_timestamp": 1780831228,
+                "payment_type": "inapp",
+                "payment_method_id": "b9110aa2-dc72-4246-be0d-0215c1aabbbb",
+                "payment_method_type": "card",
+                "price_str": "15,34 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780831244,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542372013,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Jana Dekerta, Kraków 30-703, Polska",
+                "created": "2026.06.07 11:00",
+                "created_timestamp": 1780830032,
+                "payment_type": "inapp",
+                "payment_method_id": "bca83ad0-351b-4b4f-b55d-a3f70bbb5343",
+                "payment_method_type": "card",
+                "price_str": "11,01 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780830039,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542370117,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Solna, Kraków 00-000, Polska",
+                "created": "2026.06.07 10:58",
+                "created_timestamp": 1780829917,
+                "payment_type": "cash",
+                "payment_method_id": "cash",
+                "payment_method_type": "default",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "driver_did_not_respond",
+                "status_html": "<color type=\"reference\" value=\"content.danger-primary\">Brak odpowiedzi z Twojej strony</color>"
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542349413,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Kobierzyńska, Kraków 30-363, Polska",
+                "created": "2026.06.07 10:36",
+                "created_timestamp": 1780828587,
+                "payment_type": "cash",
+                "payment_method_id": "cash",
+                "payment_method_type": "default",
+                "price_str": "13,65 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780828622,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/cash_driver.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542349253,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Pychowicka, Kraków 30-364, Polska",
+                "created": "2026.06.07 10:36",
+                "created_timestamp": 1780828577,
+                "payment_type": "cash",
+                "payment_method_id": "cash",
+                "payment_method_type": "default",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "client_cancelled",
+                "status_html": "<color type=\"reference\" value=\"content.warning-primary\">Pasażer anulował</color>"
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542334061,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Powiśle, Kraków 31-101, Polska",
+                "created": "2026.06.07 10:19",
+                "created_timestamp": 1780827580,
+                "payment_type": "inapp",
+                "payment_method_id": "applepay",
+                "payment_method_type": "applepay",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "driver_rejected",
+                "status_html": "<color type=\"reference\" value=\"content.danger-primary\">Odrzucone przez Ciebie</color>"
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542333070,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Zakrzowiecka, Kraków 00-000, Polska",
+                "created": "2026.06.07 10:18",
+                "created_timestamp": 1780827515,
+                "payment_type": "inapp",
+                "payment_method_id": "applepay",
+                "payment_method_type": "applepay",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "driver_rejected",
+                "status_html": "<color type=\"reference\" value=\"content.danger-primary\">Odrzucone przez Ciebie</color>"
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542296079,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Walerego Eliasza Radzikowskiego, Kraków 31-342, Polska",
+                "created": "2026.06.07 09:37",
+                "created_timestamp": 1780825073,
+                "payment_type": "inapp",
+                "payment_method_id": "manual",
+                "payment_method_type": "adyen_blik",
+                "price_str": "16,55 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780825281,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542291461,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Topolowa, Kraków 31-512, Polska",
+                "created": "2026.06.07 09:32",
+                "created_timestamp": 1780824770,
+                "payment_type": "inapp",
+                "payment_method_id": "95f1dd1b-1fce-4dee-8426-c1b736714a3d",
+                "payment_method_type": "card",
+                "price_str": "21,87 zł",
+                "tip_str": "Napiwek 7,00 zł",
+                "price_review_status": "ok",
+                "state": "finished",
+                "accepted_timestamp": 1780824774,
+                "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+                "payment_icon": {
+                  "type": "tintable",
+                  "tintable_url": {
+                    "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                  },
+                  "tintable_color": {
+                    "type": "functional_color",
+                    "reference": "content.secondary"
+                  }
+                }
+              },
+              {
+                "order_handle": {
+                  "order_id": 2542290262,
+                  "city_id": 211,
+                  "order_system": "taxi"
+                },
+                "address": "Niedaleko Jana Dekerta, Kraków 30-703, Polska",
+                "created": "2026.06.07 09:31",
+                "created_timestamp": 1780824690,
+                "payment_type": "inapp",
+                "payment_method_id": "4826d6ff-d37b-40fb-ab06-c6356b29609a",
+                "payment_method_type": "card",
+                "price_str": null,
+                "price_review_status": "ok",
+                "state": "driver_rejected",
+                "status_html": "<color type=\"reference\" value=\"content.danger-primary\">Odrzucone przez Ciebie</color>"
+              }
+            ],
+            "cursor": "1780824691"
+          }
+        }
+      '''
+    }
+  }
 }

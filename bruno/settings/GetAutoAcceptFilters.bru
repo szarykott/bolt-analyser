@@ -22,3 +22,58 @@ params:query {
 headers {
   ~Content-Type: application/json
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/driver/getAutoAcceptFilters?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+    }
+  
+    headers: {
+      ~Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:42:12 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b1c51e31028d-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "title": "Opcje automatycznej akceptacji",
+            "sections": []
+          }
+        }
+      '''
+    }
+  }
+}

@@ -32,3 +32,135 @@ body:json {
           }
   }
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/orderDriver/v1/getPreviousOrder?country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&version={{VERSION}}
+    method: POST
+    mode: json
+    params:query: {
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+      version: {{VERSION}}
+    }
+  
+    headers: {
+      Content-Type: application/json
+    }
+  
+    body:json: {
+      {
+              "order_handle": {
+                "order_id": 2443655264,
+                "city_id": 211,
+                "order_system": "taxi"
+              }
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:41:26 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b0a2de4a651d-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "brand": "bolt",
+            "order_handle": {
+              "order_id": 2443655264,
+              "city_id": 211,
+              "order_system": "taxi"
+            },
+            "created": "2026.03.29 14:31",
+            "created_timestamp": 1774794679,
+            "accepted_timestamp": 1774794686,
+            "address": "Niedaleko Generała Henryka Kamieńskiego, Kraków 30-644, Polska",
+            "stops": [
+              {
+                "type": "arrival",
+                "lat": 50.026993,
+                "lng": 19.95076,
+                "address": "Niedaleko Generała Henryka Kamieńskiego, Kraków 30-644, Polska",
+                "accuracy_m": 657,
+                "timestamp": 1774795282
+              },
+              {
+                "type": "departure",
+                "lat": 50.026993,
+                "lng": 19.95076,
+                "address": "Niedaleko Generała Henryka Kamieńskiego, Kraków 30-644, Polska",
+                "accuracy_m": 657,
+                "timestamp": 1774795353
+              },
+              {
+                "type": "arrival",
+                "lat": 50.044947,
+                "lng": 19.92318,
+                "address": "Niedaleko Kapelanka, Kraków 30-347, Polska",
+                "accuracy_m": 657,
+                "timestamp": 1774795979
+              }
+            ],
+            "ride_start": 1774795353,
+            "ride_end": 1774795979,
+            "ride_distance_str": "4.3km",
+            "price_str": "12,54 zł",
+            "cash_payment_str": null,
+            "cash_campaign_str": null,
+            "state": "finished",
+            "precise_location_privacy_note": "Dokładne adresy są ukryte w celu ochrony prywatności",
+            "price_review_status": "ok",
+            "payment_type": "inapp",
+            "payment_method_type": "card",
+            "payment_method_id": "5e6053fc-fa78-4d0e-b008-22fce8191f71",
+            "payment_details": {
+              "text": "Płatności za pośrednictwem aplikacji",
+              "icon": {
+                "type": "tintable",
+                "tintable_url": {
+                  "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                },
+                "tintable_color": {
+                  "type": "functional_color",
+                  "reference": "content.secondary"
+                }
+              }
+            },
+            "trip_audio_recording": {
+              "succeded": true,
+              "recording_info": null
+            },
+            "rewards_points_str": "200",
+            "status_html": "<color type=\"reference\" value=\"content.positive-primary\">Zakończony</color>",
+            "contact_option_available": true
+          }
+        }
+      '''
+    }
+  }
+}

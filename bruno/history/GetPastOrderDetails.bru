@@ -32,3 +32,265 @@ body:json {
           }
   }
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/driver/getPastOrderDetails?country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&version={{VERSION}}
+    method: POST
+    mode: json
+    params:query: {
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+      version: {{VERSION}}
+    }
+  
+    headers: {
+      Content-Type: application/json
+    }
+  
+    body:json: {
+      {
+              "order_handle": {
+                "order_id": 2443655264,
+                "city_id": 211,
+                "order_system": "taxi"
+              }
+      }
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:41:29 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b0b7fe59c3ef-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "title": "29 mar, 16:31",
+            "summary": {
+              "labels": [
+                {
+                  "icon": {
+                    "type": "normal",
+                    "light_url": {
+                      "url": "https://images.bolt.eu/driver_experience/mobile/driver_order_history/vehicle_light.png"
+                    },
+                    "dark_url": {
+                      "url": "https://images.bolt.eu/driver_experience/mobile/driver_order_history/vehicle_dark.png"
+                    }
+                  },
+                  "text": "Bolt"
+                },
+                {
+                  "icon": {
+                    "type": "normal",
+                    "light_url": {
+                      "url": "https://images.bolt.eu/driver_experience/mobile/driver_order_history/route_light.png"
+                    },
+                    "dark_url": {
+                      "url": "https://images.bolt.eu/driver_experience/mobile/driver_order_history/route_dark.png"
+                    }
+                  },
+                  "text": "4.3km"
+                },
+                {
+                  "icon": {
+                    "type": "normal",
+                    "light_url": {
+                      "url": "https://images.bolt.eu/driver_experience/mobile/driver_order_history/time_outline_light.png"
+                    },
+                    "dark_url": {
+                      "url": "https://images.bolt.eu/driver_experience/mobile/driver_order_history/time_outline_dark.png"
+                    }
+                  },
+                  "text": "11 min"
+                }
+              ],
+              "stops": [
+                {
+                  "title": "Niedaleko Generała Henryka Kamieńskiego, Kraków 30-644, Polska",
+                  "value": "16:41",
+                  "is_cancelled": false,
+                  "color": {
+                    "type": "functional_color",
+                    "reference": "border.positive-primary"
+                  },
+                  "location": {
+                    "lat": 50.026993,
+                    "lng": 19.95076,
+                    "accuracy_in_meters": 657
+                  }
+                },
+                {
+                  "title": "Niedaleko Kapelanka, Kraków 30-347, Polska",
+                  "value": "16:52",
+                  "is_cancelled": false,
+                  "color": {
+                    "type": "functional_color",
+                    "reference": "border.danger-primary"
+                  },
+                  "location": {
+                    "lat": 50.044947,
+                    "lng": 19.92318,
+                    "accuracy_in_meters": 657
+                  }
+                }
+              ],
+              "route_info": "Dokładne adresy są ukryte w celu ochrony prywatności",
+              "items": [
+                {
+                  "lead_component": {
+                    "type": "image",
+                    "image": {
+                      "type": "normal",
+                      "light_url": {
+                        "url": "https://images.bolt.eu/mobile/driver_loyalty/mini_icon/bronze_icon_light_4x.png"
+                      },
+                      "dark_url": {
+                        "url": "https://images.bolt.eu/mobile/driver_loyalty/mini_icon/bronze_icon_dark_4x.png"
+                      }
+                    }
+                  },
+                  "title": "Punkty Bolt",
+                  "subtitle": "<color type=\"reference\" value=\"content.action-primary\">Więcej o Bolt Rewards</color>",
+                  "trailing_component": {
+                    "type": "text",
+                    "text": "200",
+                    "text_type": "main"
+                  },
+                  "action_url": "boltdriverapp://rewards",
+                  "analytics_event": {
+                    "tapped": {
+                      "name": "Trip History More About Bolt Rewards"
+                    }
+                  }
+                }
+              ]
+            },
+            "can_call_client": true,
+            "audio_recording_data": {
+              "succeded": true
+            },
+            "payment": {
+              "title": "Płatność",
+              "items": [
+                {
+                  "title": "Pasażer zapłacił",
+                  "subtitle": "Płatności za pośrednictwem aplikacji",
+                  "trailing_component": {
+                    "type": "text_image",
+                    "image": {
+                      "type": "tintable",
+                      "tintable_url": {
+                        "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                      },
+                      "tintable_color": {
+                        "type": "functional_color",
+                        "reference": "content.secondary"
+                      }
+                    },
+                    "text": "16,30 zł"
+                  }
+                },
+                {
+                  "title": "Kompensata od Bolt",
+                  "subtitle": "Przejazd z zastosowaniem zniżki",
+                  "trailing_component": {
+                    "type": "text_image",
+                    "image": {
+                      "type": "tintable",
+                      "tintable_url": {
+                        "url": "https://images.bolt.eu/driver_experience/active_order/payment_details/card.png"
+                      },
+                      "tintable_color": {
+                        "type": "functional_color",
+                        "reference": "content.secondary"
+                      }
+                    },
+                    "text": "1,81 zł"
+                  }
+                }
+              ]
+            },
+            "earnings": {
+              "title": "Szczegóły",
+              "accordion_items": [
+                {
+                  "title": "Przychód",
+                  "value": "18,11 zł",
+                  "items": [
+                    {
+                      "title": "Stawka bazowa • Bolt",
+                      "value": "18,11 zł"
+                    }
+                  ],
+                  "indented": true
+                },
+                {
+                  "title": "Prowizja Bolt",
+                  "value": "-5,57 zł",
+                  "hint_action": {
+                    "type": "dialog",
+                    "dialog": {
+                      "type": "info",
+                      "title": "Prowizja Bolt",
+                      "subtitle": "-5,57 zł",
+                      "message": "Nie dotyczy napiwków, kampanii, opłaty rezerwacyjnej i innych dodatkowych opłat.",
+                      "buttons": [
+                        {
+                          "title": "Zamknij",
+                          "appearance": "secondary",
+                          "size": "large",
+                          "action": {
+                            "type": "close"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "items": [],
+                  "indented": true
+                }
+              ],
+              "list_items": [
+                {
+                  "title": "<font name=\"body_semibold_m\">Twoje zarobki</font>",
+                  "trailing_component": {
+                    "type": "text",
+                    "text": "<font name=\"body_semibold_m\">12,54 zł</font>",
+                    "text_type": "main"
+                  },
+                  "has_separator": false
+                }
+              ]
+            }
+          }
+        }
+      '''
+    }
+  }
+}

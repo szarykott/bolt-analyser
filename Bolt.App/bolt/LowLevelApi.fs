@@ -2,44 +2,15 @@ module Bolt.App.bolt.LowLevelApi
 
 open System
 open System.Net.Http
-open System.Net
 open System.Text.Json.Serialization
 open Bolt.App.bolt.Models
 open Bolt.App.bolt.Tokens
-
-type SuccessResponse<'T> =
-    { [<JsonPropertyName("message")>]
-      Message: string
-      [<JsonPropertyName("data")>]
-      Data: 'T }
-
-type ValidationError =
-    { [<JsonPropertyName("error")>]
-      Error: string
-      [<JsonPropertyName("property")>]
-      Property: string }
-
-type ErrorResponse =
-    { [<JsonPropertyName("error")>]
-      Code: int
-      [<JsonPropertyName("message")>]
-      Message: string
-      [<JsonPropertyName("error_hint")>]
-      ErrorHint: string option
-      [<JsonPropertyName("validation_errors")>]
-      ValidationErrors: ValidationError list option }
-
-type ApiError =
-    | BoltError of ErrorResponse
-    | NetworkError of exn
-    | DeserializationError of exn
-    | AuthError of string
-    | HttpError of status: HttpStatusCode * body: string
+open Bolt.App.Serialization
+open Bolt.App.Logging
 
 module LowLevelApi =
     open System.Threading.Tasks
     open System.Threading
-    open System.Text.Json
     open TaskResultBuilder
     open Bolt.App.bolt.Http
 
@@ -47,25 +18,30 @@ module LowLevelApi =
         { [<JsonPropertyName("code")>]
           Code: int }
 
+    let private logRequest (request: HttpRequestMessage) =
+        Logger.debug $"[{request.Method}] {request.RequestUri}"
+        
     let private rawSend<'T>
         (cfg: ApiConfig)
         (ct: CancellationToken)
         (req: HttpRequestMessage)
         : Task<Result<'T, ApiError>> =
+        logRequest req    
+        
         task {
             try
                 use! resp = cfg.HttpClient.SendAsync(req, ct)
 
                 let! body = resp.Content.ReadAsStringAsync ct
 
+                Logger.debug $"[{resp.StatusCode}] {body}"
+                
                 if resp.IsSuccessStatusCode then
                     try
-                        let boltCode = JsonSerializer.Deserialize<ResponseCode> body
-
-                        match boltCode.Code with
-                        | n when n = 0 -> return Ok (JsonSerializer.Deserialize<SuccessResponse<'T>> body).Data
-                        | n when n = 503 -> return Error(AuthError "NOT_AUTHORIZED")
-                        | _ -> return Error(BoltError(JsonSerializer.Deserialize<ErrorResponse> body))
+                        match (Json.deserialize body).Code with
+                        | 0 -> return Ok (Json.deserialize<'T> body)
+                        | 503 -> return Error(AuthError "NOT_AUTHORIZED")
+                        | _ -> return Error(BoltError(Json.deserialize<ErrorResponse> body))
                     with ex ->
                         return Error(DeserializationError ex)
                 else
@@ -86,12 +62,12 @@ module LowLevelApi =
                 RequestBuilder.newRequest
                     HttpMethod.Post
                     (Uri(cfg.BaseUrl, $"driver/sendMagicLink?version={cfg.RubbishData.Version}"))
-                |> RequestBuilder.withUrlFromEncodedBody
+                |> RequestBuilder.withUrlFormEncodedBody
                     [| ("email", email)
                        ("device_uid", cfg.RubbishData.DeviceUid)
                        ("device_name", cfg.RubbishData.DeviceName)
                        ("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
-                |> rawSend<unit> cfg ct
+                |> rawSend<SuccessResponse> cfg ct
         }
 
     type RefreshTokenResponse =
@@ -110,14 +86,14 @@ module LowLevelApi =
                 RequestBuilder.newRequest
                     HttpMethod.Post
                     (Uri(cfg.BaseUrl, $"driver/authenticateWithMagicLink?version={cfg.RubbishData.Version}"))
-                |> RequestBuilder.withUrlFromEncodedBody
+                |> RequestBuilder.withUrlFormEncodedBody
                     [| ("token", v)
                        ("device_uid", cfg.RubbishData.DeviceUid)
                        ("device_name", cfg.RubbishData.DeviceName)
                        ("device_os_version", cfg.RubbishData.DeviceOsVersion) |]
-                |> rawSend<RefreshTokenResponse> cfg ct
+                |> rawSend<SuccessResponse<RefreshTokenResponse>> cfg ct
 
-            return RefreshToken resp.RefreshToken
+            return RefreshToken resp.Data.RefreshToken
         }
 
 
@@ -126,8 +102,11 @@ module LowLevelApi =
           AccessToken: string
           [<JsonPropertyName("expires_timestamp")>]
           ExpiresTimestamp: int64
+          [<JsonPropertyName("expires_in_seconds")>]
           ExpiresInSeconds: int32
+          [<JsonPropertyName("next_update_in_seconds")>]
           NextUpdateInSeconds: int32
+          [<JsonPropertyName("next_update_give_up_timestamp")>]
           NextUpdateGiveUpTimestamp: int64 }
 
     let private getAccessToken
@@ -140,10 +119,10 @@ module LowLevelApi =
 
             let! resp =
                 RequestBuilder.newRequest HttpMethod.Post (Uri(cfg.BaseUrl, "driver/getAccessToken"))
-                |> RequestBuilder.withUrlFromEncodedBody [| ("refresh_token", v) |]
-                |> rawSend<AccessTokenResponse> cfg ct
+                |> RequestBuilder.withUrlFormEncodedBody [| ("refresh_token", v) |]
+                |> rawSend<SuccessResponse<AccessTokenResponse>> cfg ct
 
-            return AccessToken(resp.AccessToken, resp.ExpiresTimestamp |> DateTimeOffset.FromUnixTimeSeconds)
+            return AccessToken(resp.Data.AccessToken, resp.Data.ExpiresTimestamp |> DateTimeOffset.FromUnixTimeSeconds)
         }
 
 
@@ -188,11 +167,16 @@ module LowLevelApi =
             refreshTokens config ct
 
     let send<'T> cfg ct request: Task<Result<'T, ApiError>> =
+        let attempt () = request |> withAuthentication cfg |> rawSend<SuccessResponse<'T>> cfg ct
         task {
-            match! request |> withAuthentication cfg |> rawSend<'T> cfg ct with
+            match! attempt () with
+            | Ok response -> return Ok response.Data
             | Error(AuthError _) ->
                 match! refreshTokens cfg ct with
-                | Ok _ -> return! request |> withAuthentication cfg |> rawSend<'T> cfg ct // retry once
+                | Ok _ ->
+                    match! attempt () with
+                    | Ok response -> return Ok response.Data
+                    | Error e -> return Error e
                 | Error e -> return Error e
-            | other -> return other
+            | Error e -> return Error e
         }

@@ -21,3 +21,351 @@ params:query {
 headers {
   ~Content-Type: application/json
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/driver/getLoggedInDriverConfigurationV2?version={{VERSION}}&language={{LANGUAGE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&device_name={{DEVICE_NAME}}
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      language: {{LANGUAGE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+      device_name: {{DEVICE_NAME}}
+    }
+  
+    headers: {
+      ~Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:41:18 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      server: cloudflare
+      cf-ray: a0a0b072cf38c3d3-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "app": {
+              "activity_config": {
+                "is_hours_enabled": true,
+                "is_rides_enabled": true,
+                "is_cancels_enabled": true
+              },
+              "app_version_state": "ok",
+              "default_max_client_distance": 5000,
+              "driver_is_busy_check_interval": 2400,
+              "max_client_distances_list": [
+                {
+                  "distance_in_meters": 2000,
+                  "distance_with_unit": "2KM"
+                },
+                {
+                  "distance_in_meters": 3000,
+                  "distance_with_unit": "3KM"
+                },
+                {
+                  "distance_in_meters": 4000,
+                  "distance_with_unit": "4KM"
+                },
+                {
+                  "distance_in_meters": 5000,
+                  "distance_with_unit": "5KM"
+                },
+                {
+                  "distance_in_meters": 6000,
+                  "distance_with_unit": "6KM"
+                },
+                {
+                  "distance_in_meters": 8000,
+                  "distance_with_unit": "8KM"
+                },
+                {
+                  "distance_in_meters": 10000,
+                  "distance_with_unit": "10KM"
+                },
+                {
+                  "distance_in_meters": 12000,
+                  "distance_with_unit": "12KM"
+                },
+                {
+                  "distance_in_meters": 14000,
+                  "distance_with_unit": "14KM"
+                },
+                {
+                  "distance_in_meters": 16000,
+                  "distance_with_unit": "16KM"
+                },
+                {
+                  "distance_in_meters": 18000,
+                  "distance_with_unit": "18KM"
+                },
+                {
+                  "distance_in_meters": 22000,
+                  "distance_with_unit": "22KM"
+                },
+                {
+                  "distance_in_meters": 26000,
+                  "distance_with_unit": "26KM"
+                },
+                {
+                  "distance_in_meters": 30000,
+                  "distance_with_unit": "30KM"
+                },
+                {
+                  "distance_in_meters": 35000,
+                  "distance_with_unit": "35KM"
+                },
+                {
+                  "distance_in_meters": 40000,
+                  "distance_with_unit": "40KM"
+                }
+              ],
+              "order_server_config": {
+                "order_server_url": "https://europe-company.taxify.eu",
+                "order_shard_id": "europe"
+              },
+              "route_refresh_interval": 15,
+              "turn_by_turn_navigation_config": {
+                "mapbox_api_token": "pk.eyJ1IjoiYm9sdHVzZXIiLCJhIjoiY21kc2llZ3puMDVscTJqcXg5MWhtNTM2ZyJ9.Z8lWACCTfmoOL1b2wrrsJw",
+                "mapbox_map_styles": {
+                  "dark": "mapbox://styles/boltuser/cme2i5k9g00p201sd1otn0nes",
+                  "light": "mapbox://styles/mapbox/streets-v11"
+                },
+                "ferrostar_configuration": {
+                  "version": 2,
+                  "waypoint_advance_within_range": 10,
+                  "step_advance_condition": {
+                    "distance_to_end_of_step": 20,
+                    "distance_after_end_of_step": 2,
+                    "minimum_horizontal_accuracy": 32
+                  },
+                  "arrival_step_advance_condition": {
+                    "distance": 15,
+                    "minimum_horizontal_accuracy": 32
+                  },
+                  "route_deviation_tracking": {
+                    "minimum_horizontal_accuracy": 20,
+                    "max_acceptable_deviation": 12
+                  }
+                }
+              },
+              "system_of_measurement": "metric",
+              "tracking_config": {
+                "tracking_collect_interval_s": 1,
+                "tracking_send_interval_s": 30,
+                "tracking_send_batch": 1000
+              },
+              "utc_time": 1781181678640,
+              "driver_portal_links": {
+                "driver_portal_login_link": "https://partners.bolt.eu/login",
+                "driver_portal_documents_link": "https://partners.bolt.eu/documents/",
+                "driver_portal_add_car_link": "https://partners.bolt.eu/vehicles/add",
+                "driver_portal_car_application_link": "https://partners.bolt.eu/v2/vehicles/application",
+                "driver_portal_vehicle_documents_link": "https://partners.bolt.eu/v2/vehicles"
+              },
+              "tracking_consents": {
+                "active": false,
+                "needs_configuration": false,
+                "consents": []
+              },
+              "braze_config": {
+                "braze_api_key": "ea8ff115-7166-406f-a277-383d60b66047",
+                "braze_custom_url": "sdk.fra-02.braze.eu"
+              }
+            },
+            "car": {
+              "selected_car_id": 9372870,
+              "selected_car_name": "KK4568R • Toyota Corolla Sedan 2025"
+            },
+            "user": {
+              "id": 8807145,
+              "partner_id": 14564984,
+              "city_name": "Krakow",
+              "company_id": 40914,
+              "country": "pl",
+              "driver_language": "pl",
+              "driver_operator_name": "",
+              "emergency_phone_number": "112",
+              "name": "Radosław Kot",
+              "phone": "+48698960061",
+              "referral_code": "RADOSLAWK1527",
+              "analytics_id": "partner-14564984",
+              "braze_user_id": "puid-c0cda8f0-4986-4409-a32b-a4bfdfb1805e",
+              "lifecycle_id": "driver-8807145",
+              "lifecycle_provider_account_id": "R97-779-6R5Z",
+              "lifecycle_provider_access_token": "caa-ac2",
+              "username": "radoslaw.edward.kot@gmail.com"
+            },
+            "features": {
+              "prod_is_driver_guides_enabled": true,
+              "dev_is_arrived_at_pick_up_improvements_enabled": true,
+              "eng_check_references_delay": 5,
+              "dev_is_dma_consents_enabled": true,
+              "dev_is_order_information_message_enabled": true,
+              "dev_is_order_history_pagination_enabled": true,
+              "prod_is_local_auto_acceptance_banner_disabled": true,
+              "is_back_to_city_ui_enabled": true,
+              "is_documents_expiry_banner_enabled": true,
+              "dev_is_mqtt_help_badges_enabled": true,
+              "dev_is_mqtt_analyzer_enabled": true,
+              "is_shift_summary_enabled": true,
+              "eng_is_trip_towards_destination_redesign_enabled": true,
+              "eng_use_in_memory_storage_only_for_mqtt_enabled": true,
+              "prod_is_balance_v3_enabled": true,
+              "dev_inbox_messages_enabled": true,
+              "prod_is_price_confirmation_screen_redesign_enabled": true,
+              "dev_is_section_based_warnings_enabled": true,
+              "prod_driver_preferences_v2_enabled": true,
+              "dev_is_earnings_show_gross_values_enabled": true,
+              "prod_is_earnings_v3_enabled": true,
+              "eng_mqtt_clean_session_enabled": true,
+              "eng_mqtt_keep_alive_interval_seconds": 5,
+              "prod_is_local_route_changed_banner_disabled": true,
+              "eng_crash_reporting_sdk": "localsentry",
+              "prod_is_categories_opt_out_control_enabled": true,
+              "prod_is_categories_opt_out_control_disclaimer_enabled": true,
+              "dev_is_project_green_enabled": true,
+              "prod_break_mode_enabled": true,
+              "is_shift_planning_tile_enabled": true,
+              "eng_is_pricing_data_refactoring_enabled": true,
+              "prod_is_driver_profile_enabled": true,
+              "prod_is_vehicle_less_guidance_enabled": true,
+              "prod_is_earnings_breakdown_enabled": true,
+              "prod_is_earnings_hide_pie_chart_numbers_enabled": false,
+              "prod_is_earnings_show_gross_values_enabled": true,
+              "dev_is_compliment_actions_enabled": true,
+              "prod_voice_over_disabled_versions": {
+                "equalsMajor": [
+                  "16",
+                  "26"
+                ]
+              },
+              "prod_is_appsflyer_enabled": "false",
+              "eng_sentry_configuration": {
+                "enableNetworkBreadcrumbs": false,
+                "enableAutoPerformanceTracing": false,
+                "enableNetworkTracking": false,
+                "enableCaptureFailedRequests": false,
+                "tracesSampleRate": 0.05,
+                "dsn": "https://f2095259138926335bbebd33e5ba3bc0@sentry.qa.boltsvc.net/8"
+              },
+              "prod_is_personal_data_exports_enabled": true,
+              "prod_is_acceptance_screen_revamp_enabled": true,
+              "show_scheduled_rides_access_requirement_enabled": true,
+              "is_force_restart_location_enabled": true,
+              "gps_age_limit_for_force_update": 20,
+              "is_leanplum_enabled": true,
+              "is_map_dark_mode_enabled": true,
+              "is_refactored_earnings_enabled": true,
+              "is_referrals_enabled": true,
+              "is_app_rating_enabled": true,
+              "is_system_rate_alert_enabled": true,
+              "driver_state_polling_rescheduling_enabled": true,
+              "is_new_problem_with_price_action_design_enabled": true,
+              "is_user_report_logs_enabled": true,
+              "is_voip_call_enabled": true,
+              "is_new_balance_view_enabled": true,
+              "is_auth_refactored_enabled": true,
+              "is_customer_support_webview_enabled": true,
+              "is_dynamic_modal_dialogs_enabled": true,
+              "dev_is_driver_pricing_enabled": true,
+              "dev_is_driver_priority_enabled": true,
+              "prod_is_grid_home_dashboard_enabled": true,
+              "prod_is_new_price_review_screen_enabled": true,
+              "prod_is_dark_mode_enabled": true,
+              "eng_is_gps_speed_enabled": true,
+              "prod_is_trip_sharing_enabled": true,
+              "prod_is_campaign_v2_enabled": true,
+              "dev_min_disk_space_warning_value": 250,
+              "check_network_time_difference_value_limit": 60,
+              "eng_is_check_network_time_enabled": true,
+              "paid_long_stops_rescheduling_enabled": true,
+              "eng_is_appcenter_sending_error_logging_enabled": false,
+              "eng_is_earnings_v3_pie_chart_animation_enabled": true,
+              "eng_network_time_update_config": {
+                "eng_update_network_time_interval_in_sec": 1800,
+                "eng_check_network_time_interval_in_sec": 600,
+                "eng_check_network_time_offset_limit_in_sec": 120
+              },
+              "prod_is_rider_location_enabled": true,
+              "dev_is_fifo_queue_enabled": true,
+              "dev_is_b2b_acceptance_change_enabled": true,
+              "eng_is_virtual_paths_enabled": true,
+              "prod_custom_order_sounds_enabled": true,
+              "dev_is_rewards_enabled": true,
+              "dev_is_partner_offer_card_enabled": true,
+              "prod_is_safety_toolkit_enabled": true,
+              "eng_is_rate_limiter_enabled": true,
+              "eng_is_rate_limiter_declines_requests": true,
+              "rate_limiter_config": {
+                "driver-order/orderDriver/v1/getActiveOrder": {
+                  "maxAllowedRequestsCount": 12,
+                  "timePeriodInSec": 60,
+                  "minNextRequestDelayInSec": 0,
+                  "paramsToTrack": [
+                    "order_handle.order_id"
+                  ]
+                }
+              },
+              "dev_is_b2b_improvement_enabled": true,
+              "eng_is_root_rib_enabled": true,
+              "eng_is_cs_webview_custom_header_enabled": true,
+              "dev_is_marketing_consents_enabled": true,
+              "prod_is_live_location_accuracy_enabled": true,
+              "eng_is_root_order_rib_enabled": true,
+              "prod_simulated_location_ignore_enabled": true,
+              "prod_is_car_applications_enabled": true,
+              "new_flow_enabled": true,
+              "show_car_application_new_flow": true,
+              "eng_driver_voip_quality_events_enabled": true,
+              "eng_chat_sdk_tier_1_enabled": true,
+              "circle_k_loyalty_campaign_status": "not_available",
+              "client_ratings_allowed": true,
+              "is_behaviour_quality_enabled": true,
+              "is_blocked_for_in_app_training": true,
+              "is_driver_destination_enabled": true,
+              "is_earnings_view_enabled": true,
+              "is_mock_detection_enabled": true,
+              "is_order_destination_change_enabled": false,
+              "is_panic_button_enabled": true,
+              "is_scheduled_rides_enabled": true,
+              "is_loyalty_platform_enabled": true,
+              "working_time_calculation_type": "accumulating",
+              "is_trip_audio_recording_enabled": true,
+              "is_sidebar_enabled": true,
+              "is_help_station_enabled": true,
+              "is_earn_more_enabled": true,
+              "is_trusted_contacts_enabled": true,
+              "is_driver_taximeter_enabled": false,
+              "prod_is_route_details_enabled": true,
+              "prod_is_referral_tiered_campaign_enabled": false
+            }
+          }
+        }
+      '''
+    }
+  }
+}

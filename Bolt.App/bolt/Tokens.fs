@@ -1,13 +1,11 @@
 module Bolt.App.bolt.Tokens
 
 open System
-open System.IO
-open System.Text.Json
 open System.Text.RegularExpressions
 open System.Threading
 open System.Web
 open Bolt.App.ces.OptionBuilder
-open System.Text.Json.Serialization
+open Bolt.App.storage
 
 type MagicLinkToken = MagicLinkToken of string
 type AccessToken = AccessToken of value: string * expiresAt: DateTimeOffset
@@ -25,25 +23,15 @@ type TokenStore = {
 }
 
 module TokenStore =
-    let private options = JsonFSharpOptions.Default().ToJsonSerializerOptions()
+    let private storage = JsonStorage.create "tokenStore.json"
     
-    let private fromFile path =
-        match File.Exists(path) with
-        | true ->
-            let content = File.ReadAllText(path)
-            Some (JsonSerializer.Deserialize<Map<string, Tokens>>(content, options))
-        | false -> None
-    
-    let private toFile path user tokens =
-        let values =
+    let private toFile user tokens : unit =
             maybe {
-                let! allPrevious = fromFile "tokenStore.json"
+                let! allPrevious = storage.Read()
                 return Map.add user tokens allPrevious
             }
             |> Option.defaultValue (Map [(user, tokens)])
-        
-        let content = JsonSerializer.Serialize(values, options)
-        File.WriteAllText(path, content)     
+            |> storage.Write
     
     let empty user = 
         { User = user ; Current = {Access = AccessToken("", DateTimeOffset.UtcNow); Refresh = RefreshToken("") }; Lock = new SemaphoreSlim(1,1) }
@@ -54,22 +42,20 @@ module TokenStore =
     
     let fromPrevious user =
         maybe {
-            let! allPrevious = fromFile "tokenStore.json"
+            let! allPrevious = storage.Read()
             let! userPrevious = Map.tryFind user allPrevious
             return { User = user ; Current = userPrevious; Lock = new SemaphoreSlim(1,1) }
         }
     
     let store s accessToken refreshToken =
         s.Current <- { Access = accessToken; Refresh = refreshToken }
-        toFile "tokenStore.json" s.User s.Current
+        toFile s.User s.Current
     
     let storeAccessToken s accessToken=
         s.Current <- { Access = accessToken; Refresh = s.Current.Refresh }
-        toFile "tokenStore.json" s.User s.Current
+        toFile s.User s.Current
 
     let snapshot s = s.Current
-    
-
     
 module MagicLink =
     open Bolt.App.ResultBuilder

@@ -41,5 +41,22 @@ type TaskResultBuilder() =
     member _.Delay (f: unit -> Task<Result<'a, 'e>>) = f
 
     member _.Run (f: unit -> Task<Result<'a, 'e>>) = f ()
+    
+    member _.Combine (m, f) =
+        task {
+            let! r = m
+            match r with
+            | Ok () -> return! f ()
+            | Error e -> return Error e
+        }
+
+    member _.While (guard, body) =
+        task {
+            let mutable result = Ok()
+            while (guard () && Result.isOk result) do
+                let! r = body ()
+                result <- r
+            return result
+        }
 
 let taskResult = TaskResultBuilder()

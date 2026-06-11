@@ -23,3 +23,497 @@ params:query {
 headers {
   ~Content-Type: application/json
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://europe-company.taxify.eu/orderDriver/getActivityHours?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&group_by=week
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+      group_by: week
+    }
+  
+    headers: {
+      ~Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:41:32 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      set-cookie: _cfuvid=_EryLIePDhA24s4mOkzFfRI2wvaHKeWtXbWfFIwsf.A-1781181692.5474293-1.0.1.1-i8joQL2FsADov3Sw_kX5pH1Fyn8RQ5_C_90n0eZLh4g; HttpOnly; SameSite=None; Secure; Path=/; Domain=taxify.eu
+      nel: {"report_to":"cf-nel","success_fraction":0.01,"max_age":604800}
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=124BNf7L6femfkd9WKvqeG6o5RmQsRJ5bAVNDR0FmqQDyohCZZXmUSgSpPmfRY176NQCJ5i%2BdMFztKf7Lw6mPwyZSIz4UHKLDx5IR3svVBY%2FlR1fcljs55bW6SADRoYldKeEHT0%2BXYmEFw%3D%3D"}]}
+      server: cloudflare
+      cf-ray: a0a0b0ca6c17d90b-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "description_text": "Godziny jazdy i oczekiwania na przejazdy w apce Bolt",
+            "number_of_months": 3,
+            "periods": [
+              {
+                "key": "2026-13",
+                "start_date": "2026-03-23",
+                "end_date": "2026-03-29",
+                "active_seconds": 111747,
+                "items": [
+                  {
+                    "date": "2026-03-23",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-03-24",
+                    "active_seconds": 36015
+                  },
+                  {
+                    "date": "2026-03-25",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-03-26",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-03-27",
+                    "active_seconds": 39325
+                  },
+                  {
+                    "date": "2026-03-28",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-03-29",
+                    "active_seconds": 36407
+                  }
+                ]
+              },
+              {
+                "key": "2026-14",
+                "start_date": "2026-03-30",
+                "end_date": "2026-04-05",
+                "active_seconds": 36028,
+                "items": [
+                  {
+                    "date": "2026-03-30",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-03-31",
+                    "active_seconds": 36028
+                  },
+                  {
+                    "date": "2026-04-01",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-02",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-03",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-04",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-05",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-15",
+                "start_date": "2026-04-06",
+                "end_date": "2026-04-12",
+                "active_seconds": 38467,
+                "items": [
+                  {
+                    "date": "2026-04-06",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-07",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-08",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-09",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-10",
+                    "active_seconds": 38467
+                  },
+                  {
+                    "date": "2026-04-11",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-12",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-16",
+                "start_date": "2026-04-13",
+                "end_date": "2026-04-19",
+                "active_seconds": 38023,
+                "items": [
+                  {
+                    "date": "2026-04-13",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-14",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-15",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-16",
+                    "active_seconds": 38023
+                  },
+                  {
+                    "date": "2026-04-17",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-18",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-19",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-17",
+                "start_date": "2026-04-20",
+                "end_date": "2026-04-26",
+                "active_seconds": 73876,
+                "items": [
+                  {
+                    "date": "2026-04-20",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-21",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-22",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-23",
+                    "active_seconds": 36259
+                  },
+                  {
+                    "date": "2026-04-24",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-25",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-26",
+                    "active_seconds": 37617
+                  }
+                ]
+              },
+              {
+                "key": "2026-18",
+                "start_date": "2026-04-27",
+                "end_date": "2026-05-03",
+                "active_seconds": 73481,
+                "items": [
+                  {
+                    "date": "2026-04-27",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-28",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-29",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-04-30",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-01",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-02",
+                    "active_seconds": 37476
+                  },
+                  {
+                    "date": "2026-05-03",
+                    "active_seconds": 36005
+                  }
+                ]
+              },
+              {
+                "key": "2026-19",
+                "start_date": "2026-05-04",
+                "end_date": "2026-05-10",
+                "active_seconds": 0,
+                "items": [
+                  {
+                    "date": "2026-05-04",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-05",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-06",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-07",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-08",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-09",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-10",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-20",
+                "start_date": "2026-05-11",
+                "end_date": "2026-05-17",
+                "active_seconds": 0,
+                "items": [
+                  {
+                    "date": "2026-05-11",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-12",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-13",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-14",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-15",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-16",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-17",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-21",
+                "start_date": "2026-05-18",
+                "end_date": "2026-05-24",
+                "active_seconds": 36270,
+                "items": [
+                  {
+                    "date": "2026-05-18",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-19",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-20",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-21",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-22",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-23",
+                    "active_seconds": 36270
+                  },
+                  {
+                    "date": "2026-05-24",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-22",
+                "start_date": "2026-05-25",
+                "end_date": "2026-05-31",
+                "active_seconds": 36417,
+                "items": [
+                  {
+                    "date": "2026-05-25",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-26",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-27",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-28",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-29",
+                    "active_seconds": 36417
+                  },
+                  {
+                    "date": "2026-05-30",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-05-31",
+                    "active_seconds": 0
+                  }
+                ]
+              },
+              {
+                "key": "2026-23",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-07",
+                "active_seconds": 36767,
+                "items": [
+                  {
+                    "date": "2026-06-01",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-02",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-03",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-04",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-05",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-06",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-07",
+                    "active_seconds": 36767
+                  }
+                ]
+              },
+              {
+                "key": "2026-24",
+                "start_date": "2026-06-08",
+                "end_date": "2026-06-14",
+                "active_seconds": 0,
+                "items": [
+                  {
+                    "date": "2026-06-08",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-09",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-10",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-11",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-12",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-13",
+                    "active_seconds": 0
+                  },
+                  {
+                    "date": "2026-06-14",
+                    "active_seconds": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      '''
+    }
+  }
+}

@@ -22,3 +22,219 @@ params:query {
 headers {
   ~Content-Type: application/json
 }
+
+example {
+  name: example
+  
+  request: {
+    url: https://driver.live.boltsvc.net/driver/getDriverProfile?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}
+    method: GET
+    mode: none
+    params:query: {
+      version: {{VERSION}}
+      country: {{COUNTRY}}
+      language: {{LANGUAGE}}
+      deviceType: {{DEVICE_TYPE}}
+      deviceId: {{DEVICE_ID}}
+      device_os_version: {{DEVICE_OS_VERSION}}
+    }
+  
+    headers: {
+      ~Content-Type: application/json
+    }
+  }
+  
+  response: {
+    headers: {
+      date: Thu, 11 Jun 2026 12:41:14 GMT
+      content-type: application/json; charset=utf-8
+      transfer-encoding: chunked
+      connection: keep-alive
+      vary: accept-encoding
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=2592000; includeSubDomains
+      set-cookie: _cfuvid=UUuQc_7qR_PKDiP5YA.5h54W3wrzrk4DInZ78fSd8xc-1781181674152-0.0.1.1-604800000; path=/; domain=.boltsvc.net; HttpOnly; Secure; SameSite=None
+      server: cloudflare
+      cf-ray: a0a0b0571cec3558-WAW
+      alt-svc: h3=":443"; ma=86400
+    }
+  
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: json
+      content: '''
+        {
+          "code": 0,
+          "message": "OK",
+          "data": {
+            "header": {
+              "profile": {
+                "profile_image": {
+                  "type": "normal",
+                  "light_url": {
+                    "url": "https://taxify-fleet.s3.amazonaws.com/live/root/564/984/14564984_picture_szCpzksxNy.jpg"
+                  }
+                },
+                "first_name": "Radosław",
+                "last_name": "Kot",
+                "profile_badge": null
+              },
+              "items": [
+                {
+                  "type": "tile",
+                  "layout": {
+                    "row": 0,
+                    "column": 0,
+                    "height": 1,
+                    "width": 1
+                  },
+                  "payload": {
+                    "title": "rok",
+                    "value_text": "Mniej niż 1",
+                    "content": [],
+                    "analytics_event": {
+                      "tapped": {
+                        "name": "Driver Profile Years Tile Tapped",
+                        "params": {
+                          "partner_id": 14564984,
+                          "driver_id": 8807145
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "tile",
+                  "layout": {
+                    "row": 0,
+                    "column": 1,
+                    "height": 1,
+                    "width": 1
+                  },
+                  "payload": {
+                    "title": "przejazdów w tygodniu",
+                    "value_text": "0",
+                    "action_url": "boltdriverapp://activity/trips",
+                    "content": [],
+                    "analytics_event": {
+                      "tapped": {
+                        "name": "Driver Profile Weekly Trips Tile Tapped",
+                        "params": {
+                          "partner_id": 14564984,
+                          "driver_id": 8807145
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "tile",
+                  "layout": {
+                    "row": 0,
+                    "column": 2,
+                    "height": 1,
+                    "width": 1
+                  },
+                  "payload": {
+                    "title": "godzin w tygodniu",
+                    "value_text": "0",
+                    "action_url": "boltdriverapp://activity/hours",
+                    "content": [],
+                    "analytics_event": {
+                      "tapped": {
+                        "name": "Driver Profile Weekly Hours Tile Tapped",
+                        "params": {
+                          "partner_id": 14564984,
+                          "driver_id": 8807145
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "background_color": {
+                "type": "hex_color",
+                "light": "#FCEDDD",
+                "dark": "#5C4B3E"
+              },
+              "loyalty": {
+                "progress": 0.2818181818181818,
+                "tier_icon": {
+                  "type": "normal",
+                  "light_url": {
+                    "url": "https://images.bolt.eu/mobile/driver_loyalty/mini_icon/bronze_icon_light_4x.png"
+                  },
+                  "dark_url": {
+                    "url": "https://images.bolt.eu/mobile/driver_loyalty/mini_icon/bronze_icon_dark_4x.png"
+                  }
+                },
+                "tier_color": {
+                  "type": "hex_color",
+                  "light": "#D18942",
+                  "dark": "#EFA45B"
+                },
+                "tier_text": {
+                  "text": "Brązowy",
+                  "url": "boltdriverapp://rewards",
+                  "appearance": "action",
+                  "analytics_event": {
+                    "tapped": {
+                      "name": "Driver Profile Loyalty Tier Tapped",
+                      "params": {
+                        "partner_id": 14564984,
+                        "driver_id": 8807145,
+                        "tier": 0,
+                        "tier_name": "Brązowy",
+                        "tier_progress": 0.2818181818181818
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "compliments": [
+              {
+                "id": 12943073,
+                "text": "Rzadko się zdarza żeby można z kim było tak porozmawiać💫spotkali sie tacy dwaj co mieli o czym pogadac💫."
+              }
+            ],
+            "compliments_preview_count": 3,
+            "link": {
+              "text": "Zobacz więcej danych",
+              "url": "boltdriverapp://activity",
+              "appearance": "action",
+              "analytics_event": {
+                "tapped": {
+                  "name": "Driver Profile See More Data Tapped",
+                  "params": {
+                    "partner_id": 14564984,
+                    "driver_id": 8807145
+                  }
+                }
+              }
+            },
+            "see_more_link": {
+              "text": "Zobacz więcej danych",
+              "url": "boltdriverapp://activity",
+              "appearance": "action",
+              "analytics_event": {
+                "tapped": {
+                  "name": "Driver Profile See More Data Tapped",
+                  "params": {
+                    "partner_id": 14564984,
+                    "driver_id": 8807145
+                  }
+                }
+              }
+            },
+            "sections": []
+          }
+        }
+      '''
+    }
+  }
+}
