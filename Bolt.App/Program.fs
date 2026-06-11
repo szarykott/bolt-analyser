@@ -54,13 +54,11 @@ let tokenCallback = fun () ->
 let result = taskResult {
   let! bolt = BoltClient.createBolt cfg email tokenCallback CancellationToken.None
   
-  let! driverProfile : JsonElement = BoltClient.getDriverProfile bolt
+  do! BoltClient.getDriverProfile bolt
+      |>! JsonStorage.write "driverProfile.json"
   
-  printfn $"Driver profile is {serialize driverProfile}"
-  
-  let! history : JsonNode seq = BoltClient.getOrderHistory bolt 
-  JsonStorage.write "orderHistory.json" history
-  
+  do! BoltClient.getOrderHistory bolt
+      |>! JsonStorage.write "orderHistory.json"
 }
 
 match result.Result with

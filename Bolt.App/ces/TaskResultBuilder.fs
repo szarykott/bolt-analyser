@@ -60,3 +60,5 @@ type TaskResultBuilder() =
         }
 
 let taskResult = TaskResultBuilder()
+
+let inline (|>!) (m: Task<Result<'a, 'e>>) f = taskResult { let! x = m in return f x }
