@@ -1,7 +1,9 @@
 module Bolt.App.bolt.BoltModels
 
+open System
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
+open Bolt.App.Serialization
 
 type OrderHandle = {
     [<JsonPropertyName("order_id")>]
@@ -142,7 +144,7 @@ type Brand =
 
 type ActivityDay = {
     [<JsonPropertyName("date")>]
-    Date: string
+    Date: DateOnly
     [<JsonPropertyName("active_seconds")>]
     ActiveSeconds: int
 }
@@ -151,9 +153,9 @@ type ActivityPeriod = {
     [<JsonPropertyName("key")>]
     Key: string
     [<JsonPropertyName("start_date")>]
-    StartDate: string
+    StartDate: DateOnly
     [<JsonPropertyName("end_date")>]
-    EndDate: string
+    EndDate: DateOnly
     [<JsonPropertyName("active_seconds")>]
     ActiveSeconds: int
     [<JsonPropertyName("items")>]
@@ -278,9 +280,9 @@ type OrderHistory = {
     [<JsonPropertyName("address")>]
     Address: string
     [<JsonPropertyName("created")>]
-    Created: string
+    Created: DateTimeOffset
     [<JsonPropertyName("created_timestamp")>]
-    CreatedTimestamp: int64
+    CreatedTimestamp: UnixTime
     [<JsonPropertyName("payment_type")>]
     PaymentType: PaymentType
     [<JsonPropertyName("payment_method_id")>]
@@ -296,7 +298,7 @@ type OrderHistory = {
     [<JsonPropertyName("state")>]
     State: OrderState
     [<JsonPropertyName("accepted_timestamp")>]
-    AcceptedTimestamp: int64 option
+    AcceptedTimestamp: UnixTime option
     [<JsonPropertyName("status_html")>]
     StatusHtml: string
     [<JsonPropertyName("payment_icon")>]
@@ -328,7 +330,7 @@ type TripStop = {
     [<JsonPropertyName("accuracy_m")>]
     AccuracyM: int
     [<JsonPropertyName("timestamp")>]
-    Timestamp: int64 option
+    Timestamp: UnixTime option
 }
 
 type TripAudioRecording = {
@@ -346,11 +348,11 @@ type PreviousOrder = {
     [<JsonPropertyName("brand")>]
     Brand: Brand
     [<JsonPropertyName("created")>]
-    Created: string
+    Created: DateTimeOffset
     [<JsonPropertyName("created_timestamp")>]
-    CreatedTimestamp: int64
+    CreatedTimestamp: UnixTime
     [<JsonPropertyName("accepted_timestamp")>]
-    AcceptedTimestamp: int64 option
+    AcceptedTimestamp: UnixTime option
     [<JsonPropertyName("payment_type")>]
     PaymentType: PaymentType
     [<JsonPropertyName("payment_method_id")>]
