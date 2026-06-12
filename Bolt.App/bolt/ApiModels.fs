@@ -1,4 +1,4 @@
-module Bolt.App.bolt.Models
+module Bolt.App.bolt.ApiModels
 
 open System
 open System.Net

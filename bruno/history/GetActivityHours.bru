@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: https://europe-company.taxify.eu/orderDriver/getActivityHours?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&group_by=week
+  url: https://europe-company.taxify.eu/orderDriver/getActivityHours?version={{VERSION}}&country={{COUNTRY}}&language={{LANGUAGE}}&deviceType={{DEVICE_TYPE}}&deviceId={{DEVICE_ID}}&device_os_version={{DEVICE_OS_VERSION}}&group_by=day
   body: none
   auth: inherit
 }
@@ -17,7 +17,7 @@ params:query {
   deviceType: {{DEVICE_TYPE}}
   deviceId: {{DEVICE_ID}}
   device_os_version: {{DEVICE_OS_VERSION}}
-  group_by: week
+  group_by: day
 }
 
 headers {

@@ -1,15 +1,16 @@
 module Bolt.App.bolt.BoltApi
 
 open System
-open System.Linq
 open System.Net.Http
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Threading
-open Bolt.App.bolt.Models
+open Bolt.App.bolt.ApiModels
+open Bolt.App.bolt.BoltModels
 open Bolt.App.bolt.Http
 open Bolt.App.bolt.LowLevelApi
 open TaskResultBuilder
+open Bolt.App.Serialization
 
 module BoltClient =
     [<RequireQualifiedAccess>]
@@ -22,13 +23,15 @@ module BoltClient =
             do! LowLevelApi.initialize config email callback ct
             return Bolt.Instance config
         }
-        
+    
+    let mandatoryQueryParameters data =
+        $"version={data.Version}&country={data.Country}&language={data.Language}&deviceType={data.DeviceType}&deviceId={data.DeviceUid}&device_os_version={data.DeviceOsVersion}"
+    
     let getDriverProfile bolt =
         let config = getConfig bolt
         taskResult {
-            let query = let d = config.RubbishData in $"version={d.Version}&country={d.Country}&language={d.Language}&deviceType={d.DeviceType}&deviceId={d.DeviceUid}&device_os_version={d.DeviceOsVersion}"
             let! response : JsonElement =
-                RequestBuilder.newRequest HttpMethod.Get (Uri(config.BaseUrl, $"driver/getDriverProfile?{query}"))
+                RequestBuilder.newRequest HttpMethod.Get (Uri(config.BaseUrl, $"driver/getDriverProfile?{config.RubbishData |> mandatoryQueryParameters}"))
                 |> LowLevelApi.send config CancellationToken.None
             
             return response
@@ -37,8 +40,7 @@ module BoltClient =
     let rec getOrderHistoryPage bolt cursor=
         let config = getConfig bolt
         taskResult {
-            let query = let d = config.RubbishData in $"version={d.Version}&country={d.Country}&language={d.Language}&deviceType={d.DeviceType}&deviceId={d.DeviceUid}&device_os_version={d.DeviceOsVersion}"
-            
+            let query = config.RubbishData |> mandatoryQueryParameters
             let query = cursor
                         |> Option.map (fun f -> query + $"&cursor={f}")
                         |> Option.defaultValue query
@@ -66,16 +68,40 @@ module BoltClient =
                     cont <- false
 
         
-            return acc
+            let handles = acc |> Seq.map Json.deserializeNode<HistoryOrderHandle>
+            return (handles, acc)
         }
         
             
     
-    let getPreviousOrder bolt =
-        failwith "not yet implemented"
+    let getPreviousOrder bolt orderHandle =
+        let config = getConfig bolt
+        taskResult {
+            let! response : JsonElement =
+                RequestBuilder.newRequest HttpMethod.Post (Uri(config.BaseUrl, $"orderDriver/v1/getPreviousOrder?{config.RubbishData |> mandatoryQueryParameters}"))
+                |> RequestBuilder.withJsonBody orderHandle
+                |> LowLevelApi.send config CancellationToken.None
+            
+            return response
+        }
         
-    let getPastOrderDetails bolt =
-        failwith "not yet implemented"
+    let getPastOrderDetails bolt orderHandle =
+        let config = getConfig bolt
+        taskResult {
+            let! response : JsonElement =
+                RequestBuilder.newRequest HttpMethod.Post (Uri(config.BaseUrl, $"driver/getPastOrderDetails?{config.RubbishData |> mandatoryQueryParameters}"))
+                |> RequestBuilder.withJsonBody orderHandle
+                |> LowLevelApi.send config CancellationToken.None
+            
+            return response
+        }
         
     let getActivityHours bolt =
-        failwith "not yet implemented"
+        let config = getConfig bolt
+        taskResult {
+            let! response : JsonElement =
+                RequestBuilder.newRequest HttpMethod.Get (Uri(Uri("https://europe-company.taxify.eu"), $"orderDriver/getActivityHours?{config.RubbishData |> mandatoryQueryParameters}&group_by=week"))
+                |> LowLevelApi.send config CancellationToken.None
+            
+            return response
+        }

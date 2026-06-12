@@ -1,5 +1,7 @@
 module Bolt.App.Serialization
 
+open System.Text.Json.Nodes
+
 module Json =
     open System.Text.Json
     open System.Text.Json.Serialization
@@ -7,7 +9,11 @@ module Json =
 
     let private serializerSettings =
         let opts =
-            JsonFSharpOptions.Default().WithSkippableOptionFields().ToJsonSerializerOptions()
+            JsonFSharpOptions
+                .Default()
+                .WithSkippableOptionFields(SkippableOptionFields.Always, deserializeNullAsNone = true)
+                .WithUnionUnwrapFieldlessTags()
+                .ToJsonSerializerOptions()
         opts.NumberHandling <- JsonNumberHandling.AllowReadingFromString
         opts
 
@@ -15,4 +21,7 @@ module Json =
         JsonSerializer.Serialize(x, serializerSettings)
 
     let deserialize<'a> (x: string) =
+        JsonSerializer.Deserialize<'a>(x, serializerSettings)
+        
+    let deserializeNode<'a> (x: JsonNode) =
         JsonSerializer.Deserialize<'a>(x, serializerSettings)

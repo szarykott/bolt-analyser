@@ -16,8 +16,9 @@
     <Compile Include="ces\OptionBuilder.fs" />
     <Compile Include="bolt\Http.fs" />
     <Compile Include="bolt/Tokens.fs" />
-    <Compile Include="bolt\Models.fs" />
+    <Compile Include="bolt\ApiModels.fs" />
     <Compile Include="bolt\LowLevelApi.fs" />
+    <Compile Include="bolt\BoltModels.fs" />
     <Compile Include="bolt\BoltApi.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />

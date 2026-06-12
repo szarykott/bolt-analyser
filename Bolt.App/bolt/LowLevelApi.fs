@@ -3,7 +3,7 @@ module Bolt.App.bolt.LowLevelApi
 open System
 open System.Net.Http
 open System.Text.Json.Serialization
-open Bolt.App.bolt.Models
+open Bolt.App.bolt.ApiModels
 open Bolt.App.bolt.Tokens
 open Bolt.App.Serialization
 open Bolt.App.Logging
