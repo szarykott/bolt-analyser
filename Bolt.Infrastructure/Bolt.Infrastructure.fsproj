@@ -9,7 +9,7 @@
         <Compile Include="Logging.fs"/>
         <Compile Include="Serialization.fs"/>
         <Compile Include="storage\Constants.fs"/>
-        <Compile Include="storage\JsonStorage.fs"/>
+        <Compile Include="storage\Storage.fs" />
         <Compile Include="ces\TaskResultBuilder.fs"/>
         <Compile Include="ces\ResultBuilder.fs"/>
         <Compile Include="ces\OptionBuilder.fs"/>

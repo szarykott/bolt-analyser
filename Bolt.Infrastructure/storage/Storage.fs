@@ -1,4 +1,4 @@
-module Bolt.Infrastrucutre.storage
+module Bolt.Infrastrucutre.storage.Storage
 
 open System.IO
 open Bolt.Infrastrucutre.storage.Constants.Paths
@@ -35,4 +35,7 @@ module JsonStorage =
     let write file data =
         let storage = create file
         storage.Write data
-
+        
+    let read file =
+        let storage = create file
+        storage.Read ()

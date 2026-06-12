@@ -10,6 +10,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Bolt.Infrastructure\Bolt.Infrastructure.fsproj" />
       <ProjectReference Include="..\Bolt.Models\Bolt.Models.fsproj" />
     </ItemGroup>
 
