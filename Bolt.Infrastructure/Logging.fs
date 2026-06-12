@@ -1,4 +1,4 @@
-module Bolt.App.Logging
+module Bolt.Infrastrucutre.Logging
 
 module Logger =
     type Logger = {

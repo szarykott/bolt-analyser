@@ -1,4 +1,4 @@
-module Bolt.App.ResultBuilder
+module Bolt.Infrastrucutre.ces.ResultBuilder
 
 type ResultBuilder() =
     member _.Return(x: 'a) : Result<'a, 'e> = Ok x

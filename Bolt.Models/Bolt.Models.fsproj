@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="Shared.fs" />
+      <Compile Include="History.fs" />
+      <Compile Include="ActivityHours.fs" />
+      <Compile Include="DriverProfile.fs" />
+      <Compile Include="PreviousOrder.fs" />
+      <Compile Include="PastOrderDetail.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="FSharp.SystemTextJson">
+        <HintPath>..\..\..\.nuget\packages\fsharp.systemtextjson\1.4.36\lib\netstandard2.0\FSharp.SystemTextJson.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+</Project>

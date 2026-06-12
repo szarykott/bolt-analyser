@@ -1,10 +1,11 @@
-module Bolt.App.Serialization
+module Bolt.Infrastrucutre.Serialization
 
 open System
 open System.Globalization
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
+open Bolt.Models.Shared
 
 /// Bolt's "created" fields use "yyyy.MM.dd HH:mm" with no offset marker; values are UTC
 /// (verified against the sibling created_timestamp unix field).
@@ -24,17 +25,6 @@ type BoltDateTimeOffsetConverter() =
     override _.Write(writer, value, _) =
         writer.WriteStringValue(value.ToUniversalTime().ToString(format, CultureInfo.InvariantCulture))
 
-/// Unix-seconds timestamp on the wire, DateTimeOffset in the model.
-/// Distinct type so its converter can't collide with the global
-/// DateTimeOffset converter used for "yyyy.MM.dd HH:mm" strings.
-[<Struct>]
-type UnixTime =
-    | UnixTime of DateTimeOffset
-
-    member this.Value =
-        let (UnixTime v) = this
-        v
-
 type UnixTimeConverter() =
     inherit JsonConverter<UnixTime>()
 
@@ -43,36 +33,6 @@ type UnixTimeConverter() =
 
     override _.Write(writer, UnixTime value, _) =
         writer.WriteNumberValue(value.ToUnixTimeSeconds())
-
-/// PLN amount; on the wire "N,NN zł" with a no-break space (U+00A0)
-/// before "zł", e.g. "19,20 zł", "-7,03 zł".
-[<Struct>]
-type Money =
-    | Money of decimal
-
-    member this.Value =
-        let (Money v) = this
-        v
-
-/// Tip amount; on the wire "Napiwek N,NN zł" — plain Money with a
-/// constant "Napiwek " prefix.
-[<Struct>]
-type Tip =
-    | Tip of decimal
-
-    member this.Value =
-        let (Tip v) = this
-        v
-
-/// Distance in kilometres; on the wire "1.1km" or "10km" (dot decimal
-/// separator, at most one decimal, no space).
-[<Struct>]
-type Distance =
-    | Distance of decimal
-
-    member this.Value =
-        let (Distance v) = this
-        v
 
 type MoneyConverter() =
     inherit JsonConverter<Money>()
@@ -115,8 +75,6 @@ type DistanceConverter() =
         writer.WriteStringValue(value.ToString("0.#", CultureInfo.InvariantCulture) + "km")
 
 module Json =
-
-
     let private serializerSettings =
         let opts =
             JsonFSharpOptions

@@ -1,6 +1,5 @@
-module TaskResultBuilder
+module Bolt.Infrastrucutre.ces.TaskResultBuilder
 
-open System.Linq
 open System.Threading.Tasks
 
 type TaskResultBuilder() =

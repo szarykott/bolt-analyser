@@ -7,20 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Constants.fs" />
-    <Compile Include="Logging.fs" />
-    <Compile Include="Serialization.fs" />
-    <Compile Include="storage\JsonStorage.fs" />
-    <Compile Include="ces\TaskResultBuilder.fs" />
-    <Compile Include="ces\ResultBuilder.fs" />
-    <Compile Include="ces\OptionBuilder.fs" />
-    <Compile Include="bolt\Http.fs" />
-    <Compile Include="bolt/Tokens.fs" />
-    <Compile Include="bolt\ApiModels.fs" />
-    <Compile Include="bolt\LowLevelApi.fs" />
-    <Compile Include="bolt\BoltModels.fs" />
-    <Compile Include="bolt\BoltApi.fs" />
+    <Compile Include="Http.fs" />
     <Compile Include="Config.fs" />
+    <Compile Include="Tokens.fs" />
+    <Compile Include="ApiModels.fs" />
+    <Compile Include="LowLevel.fs" />
+    <Compile Include="BoltApi.fs" />
     <Compile Include="Program.fs" />
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -29,6 +21,11 @@
 
   <ItemGroup>
     <PackageReference Include="FSharp.SystemTextJson" Version="1.4.36" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bolt.Infrastructure\Bolt.Infrastructure.fsproj" />
+    <ProjectReference Include="..\Bolt.Models\Bolt.Models.fsproj" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-module Bolt.App.bolt.Http
+module Bolt.App.Http
 
 open System
 open System.Collections.Generic

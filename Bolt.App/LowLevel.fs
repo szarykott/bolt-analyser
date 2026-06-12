@@ -1,18 +1,18 @@
-module Bolt.App.bolt.LowLevelApi
+module Bolt.App.LowLevel
 
 open System
 open System.Net.Http
 open System.Text.Json.Serialization
-open Bolt.App.bolt.ApiModels
-open Bolt.App.bolt.Tokens
-open Bolt.App.Serialization
-open Bolt.App.Logging
+open Bolt.App.ApiModels
+open Bolt.App.Http
+open Bolt.App.Tokens
+open Bolt.Infrastrucutre.Serialization
+open Bolt.Infrastrucutre.Logging
 
 module LowLevelApi =
     open System.Threading.Tasks
     open System.Threading
-    open TaskResultBuilder
-    open Bolt.App.bolt.Http
+    open Bolt.Infrastrucutre.ces.TaskResultBuilder
 
     type ResponseCode =
         { [<JsonPropertyName("code")>]

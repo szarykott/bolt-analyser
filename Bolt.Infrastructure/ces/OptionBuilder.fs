@@ -1,4 +1,4 @@
-module Bolt.App.ces.OptionBuilder
+module Bolt.Infrastrucutre.ces.OptionBuilder
 
 type OptionBuilder() =
     member _.Bind(opt, binder) =

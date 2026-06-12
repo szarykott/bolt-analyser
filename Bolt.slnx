@@ -1,4 +1,9 @@
 <Solution>
-  <Project Path="Bolt.App.Tests/Bolt.App.Tests.fsproj" />
   <Project Path="Bolt.App\Bolt.App.fsproj" />
+  <Project Path="Bolt.Infrastructure/Bolt.Infrastructure.fsproj" />
+  <Project Path="Bolt.Models\Bolt.Models.fsproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/Bolt.App.Tests/Bolt.App.Tests.fsproj" />
+  </Folder>
+  <Project Path="Bolt.Reporter/Bolt.Reporter.fsproj" />
 </Solution>

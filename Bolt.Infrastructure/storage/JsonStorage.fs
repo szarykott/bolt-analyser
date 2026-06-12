@@ -1,8 +1,8 @@
-module Bolt.App.storage
+module Bolt.Infrastrucutre.storage
 
 open System.IO
-open Bolt.App.Constants.Paths
-open Bolt.App.Serialization
+open Bolt.Infrastrucutre.storage.Constants.Paths
+open Bolt.Infrastrucutre.Serialization
 
 type FileStorage<'a> = {
     Read: unit -> 'a option

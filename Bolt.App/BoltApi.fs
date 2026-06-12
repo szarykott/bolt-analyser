@@ -5,12 +5,12 @@ open System.Net.Http
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Threading
-open Bolt.App.bolt.ApiModels
-open Bolt.App.bolt.BoltModels
-open Bolt.App.bolt.Http
-open Bolt.App.bolt.LowLevelApi
-open TaskResultBuilder
-open Bolt.App.Serialization
+open Bolt.App.ApiModels
+open Bolt.App.Http
+open Bolt.App.LowLevel
+open Bolt.Infrastrucutre.Serialization
+open Bolt.Infrastrucutre.ces.TaskResultBuilder
+open Bolt.Models.History
 
 module BoltClient =
     [<RequireQualifiedAccess>]

@@ -1,4 +1,4 @@
-module Bolt.App.Constants
+module Bolt.Infrastrucutre.storage.Constants
 
 open System
 open System.IO

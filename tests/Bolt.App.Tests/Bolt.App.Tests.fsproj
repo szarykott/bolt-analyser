@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Bolt.App\Bolt.App.fsproj" />
+      <ProjectReference Include="..\..\Bolt.App\Bolt.App.fsproj" />
     </ItemGroup>
 
 </Project>
