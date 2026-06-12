@@ -290,9 +290,9 @@ type OrderHistory = {
     [<JsonPropertyName("payment_method_type")>]
     PaymentMethodType: PaymentMethodType
     [<JsonPropertyName("price_str")>]
-    PriceStr: string option
+    Price: Money option
     [<JsonPropertyName("tip_str")>]
-    TipStr: string option
+    Tip: Tip option
     [<JsonPropertyName("price_review_status")>]
     PriceReviewStatus: string
     [<JsonPropertyName("state")>]
@@ -362,17 +362,17 @@ type PreviousOrder = {
     [<JsonPropertyName("payment_details")>]
     PaymentDetails: PaymentDetails
     [<JsonPropertyName("cash_campaign_str")>]
-    CashCampaignStr: string option
+    CashCampaign: Money option
     [<JsonPropertyName("cash_payment_str")>]
-    CashPaymentStr: string option
+    CashPayment: Money option
     [<JsonPropertyName("contact_option_available")>]
     ContactOptionAvailable: bool
     [<JsonPropertyName("precise_location_privacy_note")>]
     PreciseLocationPrivacyNote: string
     [<JsonPropertyName("price_str")>]
-    PriceStr: string option
+    Price: Money option
     [<JsonPropertyName("tip_str")>]
-    TipStr: string option
+    Tip: Tip option
     [<JsonPropertyName("tip_gratitude_info")>]
     TipGratitudeInfo: TipGratitudeInfo option
     [<JsonPropertyName("rewards_points_str")>]
@@ -380,11 +380,11 @@ type PreviousOrder = {
     [<JsonPropertyName("price_review_status")>]
     PriceReviewStatus: string
     [<JsonPropertyName("ride_distance_str")>]
-    RideDistanceStr: string option
+    RideDistance: Distance option
     [<JsonPropertyName("ride_start")>]
-    RideStart: int64 option
+    RideStart: UnixTime option
     [<JsonPropertyName("ride_end")>]
-    RideEnd: int64 option
+    RideEnd: UnixTime option
     [<JsonPropertyName("state")>]
     State: OrderState
     [<JsonPropertyName("status_html")>]
@@ -515,7 +515,7 @@ type EarningsLineItem = {
     [<JsonPropertyName("title")>]
     Title: string
     [<JsonPropertyName("value")>]
-    Value: string
+    Value: Money
     [<JsonPropertyName("hint_action")>]
     HintAction: HintAction option
 }
@@ -524,7 +524,7 @@ type AccordionItem = {
     [<JsonPropertyName("title")>]
     Title: string
     [<JsonPropertyName("value")>]
-    Value: string
+    Value: Money
     [<JsonPropertyName("hint_action")>]
     HintAction: HintAction option
     [<JsonPropertyName("items")>]
