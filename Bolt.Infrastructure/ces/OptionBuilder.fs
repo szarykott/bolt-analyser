@@ -8,5 +8,8 @@ type OptionBuilder() =
     
     member _.Return(value) =
         Some value
+        
+    member _.Zero() =
+        None
 
 let maybe = OptionBuilder()

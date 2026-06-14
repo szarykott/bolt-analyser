@@ -6,12 +6,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Program.fs"/>
+        <Compile Include="Models.fs" />
+        <Compile Include="Plotting.fs" />
+        <Compile Include="Program.fs" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Bolt.Infrastructure\Bolt.Infrastructure.fsproj" />
       <ProjectReference Include="..\Bolt.Models\Bolt.Models.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="ScottPlot" Version="5.1.58" />
     </ItemGroup>
 
 </Project>

@@ -74,7 +74,7 @@ type PreviousOrder = {
     [<JsonPropertyName("tip_gratitude_info")>]
     TipGratitudeInfo: TipGratitudeInfo option
     [<JsonPropertyName("rewards_points_str")>]
-    RewardsPointsStr: string option
+    RewardsPoints: int option
     [<JsonPropertyName("price_review_status")>]
     PriceReviewStatus: string
     [<JsonPropertyName("ride_distance_str")>]

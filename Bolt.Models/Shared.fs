@@ -160,6 +160,12 @@ type Money =
     member this.Value =
         let (Money v) = this
         v
+    
+    static member (+) (m1: Money, m2: Money): Money =
+        Money (m1.Value + m2.Value)
+    
+    static member Zero =
+        Money 0m
 
 /// Unix-seconds timestamp on the wire, DateTimeOffset in the model.
 /// Distinct type so its converter can't collide with the global
