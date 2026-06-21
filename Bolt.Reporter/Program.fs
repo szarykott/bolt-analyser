@@ -5,7 +5,7 @@ open Bolt.Infrastrucutre.storage.Constants.Paths
 open Bolt.Infrastrucutre.storage.Storage
 open Bolt.Models.PreviousOrder
 open Bolt.Models.PastOrderDetail
-open Bolt.Reporter.Models
+open Bolt.Reporter.RideReportingSource
 open Bolt.Reporter.Plotting
 
 let getOffset (dt: DateTimeOffset) =
@@ -74,7 +74,7 @@ let maybeRides = maybe {
 
 let rides = maybeRides.Value
 
-let asNormalizedSideSvg plot = asMarkdownSvg 500 300 plot
+let asNormalizedSvg plot = asMarkdownSvg 500 300 plot
 
 let content = $"""
 # Raport z twojego Bolta
@@ -93,11 +93,17 @@ Całkowity dystans pokonany podczas kursów z klientami %.02f{totalDistance ride
 
 Uśrednione zarobki dla każdej rozpoczynającej się godziny (czas lokalny):
 
-{plot (rides |> averageEarnedPerHourOfDay |> Array.ofSeq) (fun (t, _) -> t.Hour) (fun (_, v) -> float v) |> asNormalizedSideSvg }
+{rides
+|> averageEarnedPerHourOfDay
+|> scatterPlot (fun (t, v) -> t.Hour, float v)
+|> asNormalizedSvg }
 
 Ilość przejazdów dla każdej rozpoczynającej się godziny (czas lokalny):
 
-{plot (rides |> numRidesPerHourOfDay |> Array.ofSeq) (fun (t, _) -> t.Hour) (fun (_, v) -> float v) |> asNormalizedSideSvg}
+{rides
+ |> numRidesPerHourOfDay
+ |> scatterPlot (fun (t, v) -> t.Hour, float v)
+ |> asNormalizedSvg }
 
 """
 

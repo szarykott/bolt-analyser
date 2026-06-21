@@ -6,7 +6,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Models.fs" />
+        <Compile Include="RideReportingSource.fs" />
+        <Compile Include="DayReporting.fs" />
+        <Compile Include="WeekReporting.fs" />
+        <Compile Include="MonthReporting.fs" />
+        <Compile Include="Calculations.fs" />
         <Compile Include="Plotting.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>

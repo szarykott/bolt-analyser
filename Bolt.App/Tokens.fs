@@ -23,6 +23,8 @@ type TokenStore = {
 }
 
 module TokenStore =
+    open Bolt.Infrastrucutre.storage.Storage
+    
     let private storage = JsonStorage.create "tokenStore.json"
     
     let private toFile user tokens : unit =
@@ -58,7 +60,7 @@ module TokenStore =
     let snapshot s = s.Current
     
 module MagicLink =
-    open Bolt.App.ResultBuilder
+    open Bolt.Infrastrucutre.ces.ResultBuilder
     
     let regex = new Regex(@".*/L0/(.*?)/.*")
     

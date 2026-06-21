@@ -1,4 +1,4 @@
-module Bolt.Reporter.Models
+module Bolt.Reporter.RideReportingSource
 
 open System
 open System.Globalization
@@ -21,13 +21,14 @@ type RideRoute =
       Stops: TripStop list }
 
 type MoneyElement =
-    { Title: string; Value: Money }
+    { Title: string
+      Value: Money }
 
-    static member (+) (m1: MoneyElement, m2: MoneyElement): MoneyElement =
-        {Title = "Summed"; Value = m1.Value + m2.Value}
-    
-    static member Zero =
-        {Title = ""; Value = Money.Zero}
+    static member (+)(m1: MoneyElement, m2: MoneyElement) : MoneyElement =
+        { Title = "Summed"
+          Value = m1.Value + m2.Value }
+
+    static member Zero = { Title = ""; Value = Money.Zero }
 
 type Payment =
     { PaymentMetadata: RidePaymentMetadata
@@ -37,12 +38,18 @@ type Payment =
 type FinishedRide =
     { Payment: Payment
       Route: RideRoute
-      Times: RideTimes }
+      Times: RideTimes
+      State: OrderState }
+
+type RideThatDidNotHappen =
+    { Created: UnixTime
+      Stops: TripStop seq
+      State: OrderState }
 
 [<RequireQualifiedAccess>]
 type RideType =
     | Finished of FinishedRide
-    | DidNotHappen of created: UnixTime * stops: TripStop seq
+    | DidNotHappen of RideThatDidNotHappen
 
 type RideReportingSource = { Handle: OrderHandle; Data: RideType }
 
@@ -81,7 +88,7 @@ let private getTimes (previousOrder: PreviousOrder) =
       RideStart = previousOrder.RideStart.Value
       RideEnd = previousOrder.RideEnd.Value }
 
-let buildReportingDataSource previousOrder pastOrderDetail =
+let buildReportingDataSource (previousOrder: PreviousOrder) pastOrderDetail =
     match previousOrder.State with
     | OrderState.Finished ->
         { Handle = previousOrder.OrderHandle
@@ -89,8 +96,14 @@ let buildReportingDataSource previousOrder pastOrderDetail =
             RideType.Finished(
                 { Payment = getPayment previousOrder pastOrderDetail
                   Route = getRoute previousOrder
-                  Times = getTimes previousOrder }
+                  Times = getTimes previousOrder
+                  State = previousOrder.State}
             ) }
     | _ ->
         { Handle = previousOrder.OrderHandle
-          Data = RideType.DidNotHappen(previousOrder.CreatedTimestamp, previousOrder.Stops) }
+          Data =
+            RideType.DidNotHappen(
+                { Created = previousOrder.CreatedTimestamp
+                  Stops = previousOrder.Stops
+                  State = previousOrder.State}
+            ) }

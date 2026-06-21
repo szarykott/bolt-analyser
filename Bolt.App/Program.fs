@@ -9,7 +9,7 @@ open Bolt.App.bolt.BoltApi
 open Bolt.Infrastrucutre.Logging
 open Bolt.App.Config
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
-open Bolt.Infrastrucutre.storage
+open Bolt.Infrastrucutre.storage.Storage
 open Bolt.Infrastrucutre.storage.Constants
 
 let serialize element =
