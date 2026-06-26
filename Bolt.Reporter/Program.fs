@@ -1,113 +1,88 @@
-﻿open System
 open System.IO
 open Bolt.Infrastrucutre.ces.OptionBuilder
 open Bolt.Infrastrucutre.storage.Constants.Paths
 open Bolt.Infrastrucutre.storage.Storage
+open Bolt.Models.ActivityHours
 open Bolt.Models.PreviousOrder
 open Bolt.Models.PastOrderDetail
+open Bolt.Reporter
 open Bolt.Reporter.RideReportingSource
 open Bolt.Reporter.Plotting
 
-let getOffset (dt: DateTimeOffset) =
-    let timezone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw")
-    timezone.GetUtcOffset(dt)
-
 let finishedRides (rides: RideReportingSource array) =
-    rides |> Array.choose (fun r -> match r.Data with
-                                    | RideType.Finished r -> Some r
-                                    | RideType.DidNotHappen _ -> None)
+    rides
+    |> Array.choose (fun r ->
+        match r.Data with
+        | RideType.Finished r -> Some r
+        | RideType.DidNotHappen _ -> None)
 
-let totalFinishedRides= finishedRides >> Seq.length
-
-let totalDistance = finishedRides >> Seq.sumBy _.Route.RideDistance.Value
-
-let earnings = finishedRides >> Seq.collect _.Payment.Earned
-
-let totalEarned  = earnings >> Seq.sumBy _.Value.Value
-
-let averageEarned rides = totalEarned rides / decimal (totalFinishedRides rides) 
-
-let ridesPerHour =
-    finishedRides
-    >> Seq.groupBy (fun r -> let x = r.Times.CreatedTimestamp.Value in DateTimeOffset(DateOnly(x.Year, x.Month, x.Day), TimeOnly(x.Hour, 0 , 0), getOffset x))
-    >> Seq.sortBy (fun r -> let dt, _ = r in dt)
-
-let ridesPerHourOfDay =
-    finishedRides
-    >> Seq.groupBy (fun r -> let x = r.Times.CreatedTimestamp.Value in TimeOnly(x.Hour + x.Offset.Hours, 0 , 0))
-    >> Seq.sortBy (fun r -> let dt, _ = r in dt)
-
-let ridesPerDay =
-    finishedRides
-    >> Seq.groupBy (fun r -> let x = r.Times.CreatedTimestamp.Value in DateOnly(x.Year, x.Month, x.Day))
-    >> Seq.sortBy (fun r -> let dt, _ = r in dt)
-
-let earnedPerHour =
-    ridesPerHour
-    >> Seq.map (fun r -> let d, rds = r in
-                            let hourSum = rds |> Seq.collect _.Payment.Earned |> Seq.sum
-                            (d, hourSum.Value))
-let averageEarnedPerHour =
-    earnedPerHour
-    >> Seq.averageBy (fun f -> let _, e = f in e.Value)
-
-let averageEarnedPerHourOfDay =
-      earnedPerHour
-      >> Seq.groupBy (fun (dt, _) -> TimeOnly(dt.Hour + dt.Offset.Hours, 0, 0))
-      >> Seq.sortBy fst
-      >> Seq.map (fun (t, slots) -> (t, slots |> Seq.averageBy (fun (_, m) -> m.Value)))
-
-let numRidesPerHourOfDay =
-    ridesPerHourOfDay
-    >> Seq.map (fun (t, rs) -> (t, Seq.length rs))
-    
 // App
 
-let maybeRides = maybe {
-    let! previousOrders : PreviousOrder seq = JsonStorage.read "previousOrders.json"
-    let! pastOrders : PastOrderDetail seq = JsonStorage.read "pastOrderDetails.json"
+let maybeRides =
+    maybe {
+        let! previousOrders: PreviousOrder seq = JsonStorage.read "previousOrders.json"
+        let! pastOrders: PastOrderDetail seq = JsonStorage.read "pastOrderDetails.json"
 
-    return Seq.zip previousOrders pastOrders
-                |> Seq.map (fun (a, b) -> buildReportingDataSource a b)
-                |> Array.ofSeq
-}
+        let! activity: ActivityHours = JsonStorage.read "activityHours.json"
+        
+        let rides =
+            Seq.zip previousOrders pastOrders
+            |> Seq.map (fun (a, b) -> buildReportingDataSource a b)
+            |> Array.ofSeq
+            
+        return (rides, activity)
+    }
 
-let rides = maybeRides.Value
+let rides, activity = maybeRides.Value
+
+let days = DayReporting.daysFromRideReportingSources rides activity
+let weeks = WeekReporting.weeksFromDayReportingSources days
+let months = MonthReporting.monthsFromDayReportingSources days
+let all = AllTimeReporting.monthsFromDayReportingSources days
+
+// TODO: WHY NOT USE PLOTLY.NET ??? IT SEEMS GREAT!!! AND IT EVEN HAS GEO CHARTS!!!
+let finished = finishedRides rides
 
 let asNormalizedSvg plot = asMarkdownSvg 500 300 plot
 
-let content = $"""
+let averageHourlyEarnings (rides': FinishedRide seq) =
+    let perHour = rides' |> Calculations.averageEarnedByHourOfDay |> Array.ofSeq
+
+    if perHour.Length = 0 then
+        0m
+    else
+        perHour |> Array.averageBy (fun (_, m) -> m.Value)
+
+let content =
+    $"""
 # Raport z twojego Bolta
 
 ## Zgrubne dane
 
-Liczba twoich ukończnych przejazdów to %i{totalFinishedRides rides}
+Liczba twoich ukończnych przejazdów to %i{Calculations.finishedCount finished}
 
-Średnio za kurs zarobiłeś %.02f{averageEarned rides} zł
+Średnio za kurs zarobiłeś %.02f{(Calculations.averageEarnedPerRide finished).Value} zł
 
-Średnie zarobki godzinowe %.02f{averageEarnedPerHour rides} zł  
+Średnie zarobki godzinowe %.02f{averageHourlyEarnings finished} zł
 
-Całkowity dystans pokonany podczas kursów z klientami %.02f{totalDistance rides} km
+Całkowity dystans pokonany podczas kursów z klientami %.02f{(Calculations.totalDistance finished).Value} km
 
 ## Wykresy
 
 Uśrednione zarobki dla każdej rozpoczynającej się godziny (czas lokalny):
 
-{rides
-|> averageEarnedPerHourOfDay
-|> scatterPlot (fun (t, v) -> t.Hour, float v)
-|> asNormalizedSvg }
+{finished
+ |> Calculations.averageEarnedByHourOfDay
+ |> scatterPlot (fun (t, m) -> float t.Hour, float m.Value)
+ |> asNormalizedSvg}
 
 Ilość przejazdów dla każdej rozpoczynającej się godziny (czas lokalny):
 
-{rides
- |> numRidesPerHourOfDay
- |> scatterPlot (fun (t, v) -> t.Hour, float v)
- |> asNormalizedSvg }
+{finished
+ |> Calculations.ridesByHourOfDay
+ |> scatterPlot (fun (t, c) -> float t.Hour, float c)
+ |> asNormalizedSvg}
 
 """
 
 File.WriteAllText(getQualifiedStorageLocation "report.md", content)
-
-
-    

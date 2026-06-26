@@ -10,6 +10,7 @@
         <Compile Include="DayReporting.fs" />
         <Compile Include="WeekReporting.fs" />
         <Compile Include="MonthReporting.fs" />
+        <Compile Include="AllTimeReporting.fs" />
         <Compile Include="Calculations.fs" />
         <Compile Include="Plotting.fs" />
         <Compile Include="Program.fs" />
