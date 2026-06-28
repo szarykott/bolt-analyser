@@ -93,17 +93,21 @@ let buildReportingDataSource (previousOrder: PreviousOrder) pastOrderDetail =
     | OrderState.Finished ->
         { Handle = previousOrder.OrderHandle
           Data =
-            RideType.Finished(
+            RideType.Finished
                 { Payment = getPayment previousOrder pastOrderDetail
                   Route = getRoute previousOrder
                   Times = getTimes previousOrder
-                  State = previousOrder.State}
-            ) }
+                  State = previousOrder.State} }
     | _ ->
         { Handle = previousOrder.OrderHandle
           Data =
-            RideType.DidNotHappen(
+            RideType.DidNotHappen
                 { Created = previousOrder.CreatedTimestamp
                   Stops = previousOrder.Stops
-                  State = previousOrder.State}
-            ) }
+                  State = previousOrder.State} }
+
+type IReportingSource =
+  abstract member Label : string
+  abstract member Active : TimeSpan option // Bolt only gives it 3 months into the past!
+  abstract member FinishedRides : FinishedRide seq
+  abstract member NotHappenedRides: RideThatDidNotHappen seq

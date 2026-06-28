@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -7,7 +7,8 @@
 
     <ItemGroup>
         <Compile Include="RideReportingSource.fs" />
-        <Compile Include="DayReporting.fs" />
+        <Compile Include="DayReporting.fs" /><Compile Include="HourByHourReporting.fs" />
+        <Compile Include="DayOfWeekReporting.fs" />
         <Compile Include="WeekReporting.fs" />
         <Compile Include="MonthReporting.fs" />
         <Compile Include="AllTimeReporting.fs" />
@@ -22,6 +23,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Plotly.NET" Version="5.1.0" />
+      <PackageReference Include="Plotly.NET.ImageExport" Version="6.1.0" />
       <PackageReference Include="ScottPlot" Version="5.1.58" />
     </ItemGroup>
 

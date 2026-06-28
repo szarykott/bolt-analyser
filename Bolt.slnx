@@ -1,10 +1,13 @@
 <Solution>
-  <Project Path="Bolt.App\Bolt.App.fsproj" />
-  <Project Path="Bolt.Infrastructure/Bolt.Infrastructure.fsproj" />
-  <Project Path="Bolt.Models\Bolt.Models.fsproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Bolt.Infrastructure/Bolt.Infrastructure.fsproj" />
+    <Project Path="src/Bolt.Models\Bolt.Models.fsproj" />
+    <Project Path="src/Bolt.Reporter/Bolt.Reporter.fsproj" />
+    <Project Path="src/Bolt.App\Bolt.App.fsproj" />
+    <Project Path="src/Bolt.ETL/Bolt.ETL.fsproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bolt.App.Tests/Bolt.App.Tests.fsproj" />
     <Project Path="tests/Bolt.Reporter.Tests/Bolt.Reporter.Tests.fsproj" />
   </Folder>
-  <Project Path="Bolt.Reporter/Bolt.Reporter.fsproj" />
 </Solution>

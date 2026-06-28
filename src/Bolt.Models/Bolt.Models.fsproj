@@ -15,9 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="FSharp.SystemTextJson">
-        <HintPath>..\..\..\.nuget\packages\fsharp.systemtextjson\1.4.36\lib\netstandard2.0\FSharp.SystemTextJson.dll</HintPath>
-      </Reference>
+      <PackageReference Include="FSharp.SystemTextJson" Version="1.4.36" />
     </ItemGroup>
 
 </Project>

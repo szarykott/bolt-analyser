@@ -2,12 +2,13 @@ open System.IO
 open Bolt.Infrastrucutre.ces.OptionBuilder
 open Bolt.Infrastrucutre.storage.Constants.Paths
 open Bolt.Infrastrucutre.storage.Storage
-open Bolt.Models.ActivityHours
 open Bolt.Models.PreviousOrder
 open Bolt.Models.PastOrderDetail
+open Bolt.Models.ActivityHours
 open Bolt.Reporter
 open Bolt.Reporter.RideReportingSource
 open Bolt.Reporter.Plotting
+open Bolt.Reporter.Calculations
 
 let finishedRides (rides: RideReportingSource array) =
     rides
@@ -30,20 +31,19 @@ let maybeRides =
             |> Seq.map (fun (a, b) -> buildReportingDataSource a b)
             |> Array.ofSeq
             
-        return (rides, activity)
+        return rides, activity
     }
 
 let rides, activity = maybeRides.Value
 
 let days = DayReporting.daysFromRideReportingSources rides activity
-let weeks = WeekReporting.weeksFromDayReportingSources days
-let months = MonthReporting.monthsFromDayReportingSources days
-let all = AllTimeReporting.monthsFromDayReportingSources days
+let weekDays = DayOfWeekReporting.weekDaysFromDayReportingSources days
+let hours = HourByHourReporting.hoursFromRideReportingSources rides
 
 // TODO: WHY NOT USE PLOTLY.NET ??? IT SEEMS GREAT!!! AND IT EVEN HAS GEO CHARTS!!!
 let finished = finishedRides rides
 
-let asNormalizedSvg plot = asMarkdownSvg 500 300 plot
+let asNormalizedSvg plot = svgString 500 300 plot
 
 let averageHourlyEarnings (rides': FinishedRide seq) =
     let perHour = rides' |> Calculations.averageEarnedByHourOfDay |> Array.ofSeq
@@ -52,6 +52,42 @@ let averageHourlyEarnings (rides': FinishedRide seq) =
         0m
     else
         perHour |> Array.averageBy (fun (_, m) -> m.Value)
+
+let aggregatedSection (source: IReportingSource seq) 
+    =
+    $"""
+
+{source 
+|> Seq.map (fun i -> i.Label, (totalEarned i.FinishedRides).Value) 
+|> linePlot
+|> linePlotStyle "Zarobki całkowite" "Okres" "PLN"
+|> asNormalizedSvg}
+
+{source 
+|> Seq.map (fun i -> i.Label, (averageEarnedPerRide i.FinishedRides).Value) 
+|> linePlot
+|> linePlotStyle "Zarobki średnie za przejazd" "Okres" "PLN"
+|> asNormalizedSvg}
+
+{source 
+|> Seq.map (fun i -> i.Label, averageHourlyEarnings i.FinishedRides) 
+|> linePlot
+|> linePlotStyle "Zarobki średnie godzinowe" "Okres" "PLN"
+|> asNormalizedSvg}
+
+{source 
+|> Seq.map (fun i -> i.Label, (averageRideDistance i.FinishedRides).Value) 
+|> linePlot
+|> linePlotStyle "Średni pokonany w kursie dystans" "Okres" "KM"
+|> asNormalizedSvg}
+
+{source 
+|> Seq.map (fun i -> i.Label, commissionRate i.FinishedRides) 
+|> linePlot
+|> linePlotStyle "Prowizja Bolt" "Okres" "%"
+|> asNormalizedSvg}
+
+"""
 
 let content =
     $"""
@@ -72,16 +108,30 @@ Całkowity dystans pokonany podczas kursów z klientami %.02f{(Calculations.tota
 Uśrednione zarobki dla każdej rozpoczynającej się godziny (czas lokalny):
 
 {finished
- |> Calculations.averageEarnedByHourOfDay
- |> scatterPlot (fun (t, m) -> float t.Hour, float m.Value)
+ |> averageEarnedByHourOfDay
+ |> Seq.map (fun (t, m) -> t.Hour, m.Value)
+ |> linePlot
  |> asNormalizedSvg}
 
 Ilość przejazdów dla każdej rozpoczynającej się godziny (czas lokalny):
 
 {finished
- |> Calculations.ridesByHourOfDay
- |> scatterPlot (fun (t, c) -> float t.Hour, float c)
+ |> ridesByHourOfDay
+ |> Seq.map (fun (t, c) -> t.Hour, c)
+ |> linePlot
  |> asNormalizedSvg}
+
+## Dzień po dniu
+
+{aggregatedSection (days |> Seq.cast<IReportingSource>)}
+
+## Dni tygodnia
+
+{aggregatedSection (weekDays |> Seq.cast<IReportingSource>)}
+
+## Godziny
+
+{aggregatedSection (hours |> Seq.cast<IReportingSource>)}
 
 """
 

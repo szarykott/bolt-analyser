@@ -1,15 +1,13 @@
 module Bolt.Reporter.AllTimeReporting
 
-open System
 open Bolt.Reporter.DayReporting
 open Bolt.Reporter.RideReportingSource
 
+// cannot have ActiveTime as Bolt only gives it for past 3 months
 type AllTimeReportingSource =
-    { ActiveTime: TimeSpan
-      FinishedRides: FinishedRide seq
+    { FinishedRides: FinishedRide seq
       NotHappenedRides: RideThatDidNotHappen seq  }
 
 let monthsFromDayReportingSources (days: DayReportingSource seq) =
-    { ActiveTime = days |> activeTimeInDays
-      FinishedRides = days |> Seq.collect _.FinishedRides
+    { FinishedRides = days |> Seq.collect _.FinishedRides
       NotHappenedRides = days |> Seq.collect _.NotHappenedRides  }

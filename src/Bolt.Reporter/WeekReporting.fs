@@ -8,9 +8,14 @@ open DayReporting
 type WeekReportingSource =
     { Year: int
       WeekNo: int
-      ActiveTime: TimeSpan
+      ActiveTime: TimeSpan option
       FinishedRides: FinishedRide seq
       NotHappenedRides: RideThatDidNotHappen seq }
+    interface IReportingSource with        
+        member this.Label = $"{this.Year}/{this.WeekNo}"
+        member this.Active = this.ActiveTime
+        member this.FinishedRides = this.FinishedRides
+        member this.NotHappenedRides = this.NotHappenedRides 
 
 let weeksFromDayReportingSources (days: DayReportingSource seq) =
     days
