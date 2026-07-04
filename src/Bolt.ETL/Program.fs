@@ -1,2 +1,3 @@
-﻿// For more information see https://aka.ms/fsharp-console-apps
+﻿module Bolt.ETL.Program
+
 printfn "Hello from F#"

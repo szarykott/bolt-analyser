@@ -12,5 +12,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Bolt.App.Tests/Bolt.App.Tests.fsproj" />
     <Project Path="tests/Bolt.Reporter.Tests/Bolt.Reporter.Tests.fsproj" />
+    <Project Path="tests/Bolt.ETL.Tests/Bolt.ETL.Tests.fsproj" />
   </Folder>
 </Solution>

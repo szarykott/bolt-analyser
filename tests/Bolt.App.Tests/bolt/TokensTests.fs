@@ -1,7 +1,6 @@
 module Bolt.Scraper.BoltApi.Tests.bolt.TokensTests
 
-open Bolt.App.Tokens
-
+open Bolt.Scraper.BoltApi.Tokens
 open Xunit
 
 [<Theory>]

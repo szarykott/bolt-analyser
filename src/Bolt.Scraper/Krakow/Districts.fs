@@ -6,7 +6,7 @@ open System.Text.Json.Serialization
 open System.Threading
 open Bolt.Infrastrucutre.Serialization
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
-open Bolt.Models.Geo.District
+open Bolt.Models.Geo
 open Bolt.Scraper.Http.RequestBuilder
 
 type private Properties = {
@@ -50,7 +50,7 @@ let getKrakowDistricts (ct: CancellationToken) =
                 |> Array.collect id
                 |> Array.map coordinateToPoint
         
-        { Name = name; Coordinates = points }
+        District.create name points
     
     let maybeDistricts =
         task {
