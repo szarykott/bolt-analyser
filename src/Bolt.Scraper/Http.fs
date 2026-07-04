@@ -1,4 +1,4 @@
-module Bolt.App.Http
+module Bolt.Scraper.Http
 
 open System
 open System.Collections.Generic

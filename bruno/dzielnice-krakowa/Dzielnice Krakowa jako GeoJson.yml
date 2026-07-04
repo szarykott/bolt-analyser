@@ -1,0 +1,31 @@
+info:
+  name: Dzielnice Krakowa jako GeoJson
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://msip3.um.krakow.pl/server/services/Pobieranie/Dzielnice/MapServer/WFSServer?service=WFS&version=2.0.0&request=GetFeature&typeName=Dzielnice:dzielnice&outputFormat=GEOJSON
+  params:
+    - name: service
+      value: WFS
+      type: query
+    - name: version
+      value: 2.0.0
+      type: query
+    - name: request
+      value: GetFeature
+      type: query
+    - name: typeName
+      value: Dzielnice:dzielnice
+      type: query
+    - name: outputFormat
+      value: GEOJSON
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

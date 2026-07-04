@@ -1,10 +1,10 @@
-module Bolt.App.ApiModels
+module Bolt.Scraper.BoltApi.ApiModels
 
 open System
 open System.Net
 open System.Net.Http
 open System.Text.Json.Serialization
-open Bolt.App.Tokens
+open Bolt.Scraper.BoltApi.Tokens
 
 type RubbishBoltData =
     { DeviceUid: string

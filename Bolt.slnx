@@ -1,10 +1,13 @@
 <Solution>
+  <Folder Name="/SolutionItems/">
+    <File Path=".gitignore" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Bolt.Infrastructure/Bolt.Infrastructure.fsproj" />
     <Project Path="src/Bolt.Models\Bolt.Models.fsproj" />
     <Project Path="src/Bolt.Reporter/Bolt.Reporter.fsproj" />
-    <Project Path="src/Bolt.App\Bolt.App.fsproj" />
     <Project Path="src/Bolt.ETL/Bolt.ETL.fsproj" />
+    <Project Path="src\Bolt.Scraper\Bolt.Scraper.fsproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bolt.App.Tests/Bolt.App.Tests.fsproj" />

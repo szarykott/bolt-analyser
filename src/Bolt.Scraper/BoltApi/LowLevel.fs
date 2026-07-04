@@ -1,13 +1,13 @@
-module Bolt.App.LowLevel
+module Bolt.Scraper.BoltApi.LowLevel
 
 open System
 open System.Net.Http
 open System.Text.Json.Serialization
-open Bolt.App.ApiModels
-open Bolt.App.Http
-open Bolt.App.Tokens
 open Bolt.Infrastrucutre.Serialization
 open Bolt.Infrastrucutre.Logging
+open Bolt.Scraper.BoltApi.ApiModels
+open Bolt.Scraper.BoltApi.Tokens
+open Bolt.Scraper.Http
 
 module LowLevelApi =
     open System.Threading.Tasks

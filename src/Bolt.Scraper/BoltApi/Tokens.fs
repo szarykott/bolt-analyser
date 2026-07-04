@@ -1,11 +1,10 @@
-module Bolt.App.Tokens
+module Bolt.Scraper.BoltApi.Tokens
 
 open System
 open System.Text.RegularExpressions
 open System.Threading
 open System.Web
 open Bolt.Infrastrucutre.ces.OptionBuilder
-open Bolt.Infrastrucutre.storage
 
 type MagicLinkToken = MagicLinkToken of string
 type AccessToken = AccessToken of value: string * expiresAt: DateTimeOffset

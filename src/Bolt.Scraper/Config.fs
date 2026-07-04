@@ -1,4 +1,4 @@
-module Bolt.App.Config
+module Bolt.Scraper.Config
 
 open System.IO
 open System.Text.Json

@@ -1,4 +1,4 @@
-module Bolt.App.Tests.bolt.TokensTests
+module Bolt.Scraper.BoltApi.Tests.bolt.TokensTests
 
 open Bolt.App.Tokens
 

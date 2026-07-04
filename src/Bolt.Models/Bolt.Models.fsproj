@@ -12,6 +12,7 @@
       <Compile Include="DriverProfile.fs" />
       <Compile Include="PreviousOrder.fs" />
       <Compile Include="PastOrderDetail.fs" />
+      <Compile Include="Geo\District.fs" />
     </ItemGroup>
 
     <ItemGroup>

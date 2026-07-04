@@ -1,13 +1,13 @@
-module Bolt.App.bolt.BoltApi
+module Bolt.Scraper.BoltApi.bolt.BoltApi
 
 open System
 open System.Net.Http
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Threading
-open Bolt.App.ApiModels
-open Bolt.App.Http
-open Bolt.App.LowLevel
+open Bolt.Scraper.BoltApi.ApiModels
+open Bolt.Scraper.BoltApi.LowLevel
+open Bolt.Scraper.Http
 open Bolt.Infrastrucutre.Serialization
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
 open Bolt.Models.History
