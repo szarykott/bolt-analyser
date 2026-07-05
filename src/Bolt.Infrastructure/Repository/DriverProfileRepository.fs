@@ -2,7 +2,7 @@ namespace Bolt.Infrastructure.Repository
 
 module DriverProfileRepository =
     open Bolt.Infrastrucutre.storage.Storage
-    open Bolt.Models.History
+    open Bolt.Models.BoltApi
 
     let private fileName = "driverProfile.json"
     

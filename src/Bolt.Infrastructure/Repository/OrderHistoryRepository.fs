@@ -3,7 +3,7 @@ namespace Bolt.Infrastructure.Repository
 
 module OrderHistoryRepository =
     open Bolt.Infrastrucutre.storage.Storage
-    open Bolt.Models.History
+    open Bolt.Models.BoltApi
 
     let private fileName = "orderHistory.json"
     

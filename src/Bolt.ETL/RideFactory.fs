@@ -1,11 +1,14 @@
-namespace Bolt.ETL.RideAnalysis
+namespace Bolt.ETL
 
 open System
 open System.Globalization
 open Bolt.Models
 open Bolt.Models.BoltApi
 
-module Transformations =
+module RideFactory =
+    let private warsawTz = TimeZoneInfo.FindSystemTimeZoneById "Europe/Warsaw"                                                                                                                                                                                                                                       
+    let private toWarsaw (dt: DateTimeOffset) = TimeZoneInfo.ConvertTime(dt, warsawTz)    
+    
     let private toMoney (s: string) =
         let pl = CultureInfo.GetCultureInfo("pl-PL")
         let core = s.Substring(0, s.Length - 3) // strip NBSP + "zł"
@@ -45,12 +48,12 @@ module Transformations =
           Stops = previousOrder.Stops |> Array.map getStops }
 
     let private getTimes (previousOrder: PreviousOrder) =
-        { CreatedTimestamp = previousOrder.CreatedTimestamp.Value
-          AcceptedTimestamp = previousOrder.AcceptedTimestamp.Value.Value
-          RideStart = previousOrder.RideStart.Value.Value
-          RideEnd = previousOrder.RideEnd.Value.Value }
+        { CreatedTimestamp = previousOrder.CreatedTimestamp.Value |> toWarsaw
+          AcceptedTimestamp = previousOrder.AcceptedTimestamp.Value.Value |> toWarsaw
+          RideStart = previousOrder.RideStart.Value.Value |> toWarsaw
+          RideEnd = previousOrder.RideEnd.Value.Value |> toWarsaw }
 
-    let toRide (previousOrder: PreviousOrder) (pastOrderDetail: PastOrderDetail) : Ride =
+    let getRide (previousOrder: PreviousOrder) (pastOrderDetail: PastOrderDetail) : Ride =
         match OrderState.isFinished previousOrder.State with
         | true ->
             { Data =
@@ -62,6 +65,6 @@ module Transformations =
         | _ ->
             { Data =
                 RideType.DidNotHappen
-                    { Created = previousOrder.CreatedTimestamp.Value
+                    { Created = previousOrder.CreatedTimestamp.Value |> toWarsaw
                       Stops = previousOrder.Stops |> Array.map getStops
                       State = previousOrder.State } }

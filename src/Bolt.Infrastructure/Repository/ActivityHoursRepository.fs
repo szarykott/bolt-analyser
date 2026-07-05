@@ -3,7 +3,7 @@ namespace Bolt.Infrastructure.Repository
 
 module ActivityHoursRepository =
     open Bolt.Infrastrucutre.storage.Storage
-    open Bolt.Models.ActivityHours
+    open Bolt.Models.BoltApi
 
     let private fileName = "activityHours.json"
     

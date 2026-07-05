@@ -54,7 +54,6 @@ module OpenMeteo =
             let! data = openMeteoResponse
             return zip4 data.Hourly.Time data.Hourly.Temperature data.Hourly.Rain data.Hourly.Snowfall
             |> Array.map (fun (h, a, b, c) -> (DateTimeOffset.Parse(h, null, DateTimeStyles.AssumeUniversal), { Temperature = a * 1.0<celcius>; Rain = b * 1.0<mm>; Snow = c * 1.0<cm> }))
-            |> Map.ofArray
-            |> fun f -> {  Center = coord; Data = f }
+            |> fun f -> Weather.create coord f
         }
 

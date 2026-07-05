@@ -2,7 +2,7 @@ namespace Bolt.Infrastructure.Repository
 
 module PreviousOrderRepository =
     open Bolt.Infrastrucutre.storage.Storage
-    open Bolt.Models.PreviousOrder
+    open Bolt.Models.BoltApi
 
     let private fileName = "previousOrders.json" 
     

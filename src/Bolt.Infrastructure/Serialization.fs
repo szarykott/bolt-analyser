@@ -5,7 +5,7 @@ open System.Globalization
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
-open Bolt.Models.Shared
+open Bolt.Models.BoltApi
 
 /// Bolt's "created" fields use "yyyy.MM.dd HH:mm" with no offset marker; values are UTC
 /// (verified against the sibling created_timestamp unix field).
@@ -68,7 +68,7 @@ type DistanceConverter() =
 
     override _.Read(reader, _, _) =
         let s = reader.GetString()
-        Distance(Decimal.Parse(s.Substring(0, s.Length - 2), CultureInfo.InvariantCulture))
+        Distance(Double.Parse(s.Substring(0, s.Length - 2), CultureInfo.InvariantCulture))
 
     override _.Write(writer, Distance value, _) =
         // "0.#" reproduces both wire forms: 1.1M -> "1.1km", 10M -> "10km"

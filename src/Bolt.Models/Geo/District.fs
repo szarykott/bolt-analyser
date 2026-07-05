@@ -7,7 +7,7 @@ type GeoPoint = {
     
 type Edge = GeoPoint * GeoPoint
 
-type District = private {
+type District = {
     Name: string
     Coordinates: GeoPoint array
     EdgeRepresentation : Edge array

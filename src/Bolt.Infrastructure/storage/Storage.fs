@@ -43,8 +43,8 @@ module JsonStorage =
 
 module CsvStorage =
     type CsvFormat = {
-        Headers: string seq
-        Rows: string seq seq
+        Headers: string array
+        Rows: string array array
     }
     
     let delimiter = ";"

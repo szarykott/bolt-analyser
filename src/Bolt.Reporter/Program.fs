@@ -1,9 +1,7 @@
 open System.IO
 open Bolt.Infrastrucutre.ces.OptionBuilder
 open Bolt.Infrastrucutre.storage.Constants.Paths
-open Bolt.Models.PreviousOrder
-open Bolt.Models.PastOrderDetail
-open Bolt.Models.ActivityHours
+open Bolt.Models.BoltApi
 open Bolt.Reporter
 open Bolt.Reporter.RideReportingSource
 open Bolt.Reporter.Plotting

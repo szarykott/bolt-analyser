@@ -38,7 +38,7 @@ let getKrakowDistricts (ct: CancellationToken) =
     
     let coordinateToPoint (coord: Coordinate) =
         match coord with
-        | [| ln; lt |] -> { Latitude = lt; Longitude = ln  }
+        | [| ln; lt |] -> { Latitude = float lt; Longitude = float ln  }
         | _ -> failwith "Invalid number of elements of array; expected 2"
         
     

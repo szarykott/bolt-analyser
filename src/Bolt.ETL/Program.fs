@@ -1,3 +1,6 @@
 ﻿module Bolt.ETL.Program
 
-printfn "Hello from F#"
+open RideAnalysis.Loader
+
+prepareRideAnalysisSource ()
+|> saveRidesDataSourceToCsv

@@ -6,19 +6,19 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Include="BoltApi\ActivityHours.fs" />
-      <Compile Include="BoltApi\DriverProfile.fs" />
-      <Compile Include="BoltApi\History.fs" />
-      <Compile Include="BoltApi\PastOrderDetail.fs" />
-      <Compile Include="Meteo.fs" />
-      <Compile Include="Ride.fs" />
-      <Compile Include="BoltApi\PreviousOrder.fs" />
-      <Compile Include="BoltApi\Shared.fs" />
-      <Compile Include="Geo\District.fs" />
+        <Compile Include="BoltApi\Shared.fs"/>
+        <Compile Include="BoltApi\PreviousOrder.fs"/>
+        <Compile Include="BoltApi\ActivityHours.fs"/>
+        <Compile Include="BoltApi\DriverProfile.fs"/>
+        <Compile Include="BoltApi\History.fs"/>
+        <Compile Include="BoltApi\PastOrderDetail.fs"/>
+        <Compile Include="Geo\District.fs"/>
+        <Compile Include="Meteo.fs"/>
+        <Compile Include="Ride.fs"/>
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="FSharp.SystemTextJson" Version="1.4.36" />
+        <PackageReference Include="FSharp.SystemTextJson" Version="1.4.36"/>
     </ItemGroup>
 
 </Project>

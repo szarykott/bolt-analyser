@@ -91,7 +91,7 @@ let scrapeMeteoData () =
         do! getWeatherData
                 (DateTimeOffset.Parse("2026-03-15"))
                 (DateTimeOffset.Parse("2026-06-30"))
-                { Latitude = 50.06255f; Longitude = 19.923765f  }
+                { Latitude = float 50.06255f; Longitude = float 19.923765f  }
             |>! MeteoRepository.save
     }
 

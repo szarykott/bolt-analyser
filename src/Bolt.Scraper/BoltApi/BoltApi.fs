@@ -10,7 +10,7 @@ open Bolt.Scraper.BoltApi.LowLevel
 open Bolt.Scraper.Http
 open Bolt.Infrastrucutre.Serialization
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
-open Bolt.Models.History
+open Bolt.Models.BoltApi
 
 module BoltClient =
     [<RequireQualifiedAccess>]

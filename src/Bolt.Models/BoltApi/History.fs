@@ -2,7 +2,7 @@ namespace Bolt.Models.BoltApi
 
 open System
 open System.Text.Json.Serialization
-open Bolt.Models.BoltApi.Shared
+open Bolt.Models.BoltApi
 
 type HistoryOrderHandle = {
     [<JsonPropertyName("order_handle")>]
