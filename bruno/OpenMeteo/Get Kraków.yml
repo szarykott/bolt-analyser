@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: https://archive-api.open-meteo.com/v1/archive?latitude=50.059784&longitude=19.947292&start_date=2026-03-15&end_date=2026-06-30&hourly=temperature_2m,rain,snowfall&timezone=Europe%2FWarsaw
+  url: https://archive-api.open-meteo.com/v1/archive?latitude=50.059784&longitude=19.947292&start_date=2026-03-15&end_date=2026-06-30&hourly=temperature_2m,rain,snowfall
   params:
     - name: latitude
       value: "50.059784"
@@ -25,6 +25,7 @@ http:
     - name: timezone
       value: Europe%2FWarsaw
       type: query
+      disabled: true
   auth: inherit
 
 settings:

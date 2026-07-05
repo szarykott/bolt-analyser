@@ -7,7 +7,7 @@ open Bolt.ETL.Geo.DistrictAssignment
 
 // Helpers
 
-let private pt lat lon : Point = { Latitude = lat; Longitude = lon }
+let private pt lat lon : GeoPoint = { Latitude = lat; Longitude = lon }
 
 let private district name coords = create name coords
 

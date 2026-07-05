@@ -1,11 +1,14 @@
 module Bolt.ETL.Geo.DistrictAssignment
 
 open Bolt.Models.Geo
-open Bolt.Models.Geo.District
+
+type DistrictName =
+    | DistrictName of string
+    member x.Value = match x with DistrictName s -> s
 
 // https://www.youtube.com/watch?v=RSXM9bgqxJM
 // https://gist.github.com/inside-code-yt/7064d1d1553a2ee117e60217cfd1d099
-let doesRayCrossEdge (point: Point) (edge: Edge) =
+let private doesRayCrossEdge (point: GeoPoint) (edge: Edge) =
     let { Latitude = latitude; Longitude = longitude } = point
     let { Latitude = lt1; Longitude = ln1 }, { Latitude = lt2; Longitude = ln2 } = edge
 
@@ -16,11 +19,13 @@ let doesRayCrossEdge (point: Point) (edge: Edge) =
 
     latitudeCondition && longitudeCondition
 
-let isWithinDistrict (coord: Point) (district: District) : bool =
+let private isWithinDistrict (coord: GeoPoint) (district: District) : bool =
     district.EdgeRepresentation
     |> Array.map (doesRayCrossEdge coord)
     |> Array.sumBy (fun r -> if r = true then 1 else 0)
     |> fun r -> r % 2 = 1
     
-let assignCoordinatesToDistrict (districts: District seq) (coord: Point) : District option =
-    districts |> Seq.tryFind (isWithinDistrict coord)
+let assignCoordinatesToDistrict (districts: District seq) (coord: GeoPoint) : DistrictName option =
+    districts
+    |> Seq.tryFind (isWithinDistrict coord)
+    |> Option.map (fun d -> DistrictName d.Name)

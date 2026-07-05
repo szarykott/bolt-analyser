@@ -1,8 +1,7 @@
-module Bolt.Models.DriverProfile
+namespace Bolt.Models.BoltApi
 
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
-open Bolt.Models.Shared
 
 type ActionLink = {
     [<JsonPropertyName("text")>]

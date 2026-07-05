@@ -6,7 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Shared\Model.fs" />
     <Compile Include="Geo\DistrictAssignment.fs" />
+    <Compile Include="Meteo\Model.fs" />
+    <Compile Include="RideAnalysis\Transformations.fs" />
+    <Compile Include="RideAnalysis\Model.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

@@ -1,19 +1,19 @@
 module Bolt.Models.Geo
 
-type Point = {
-    Latitude: float32
-    Longitude: float32
+type GeoPoint = {
+    Latitude: float
+    Longitude: float
 }
     
-type Edge = Point * Point 
+type Edge = GeoPoint * GeoPoint
+
+type District = private {
+    Name: string
+    Coordinates: GeoPoint array
+    EdgeRepresentation : Edge array
+}
 
 module District =
-    type District = {
-        Name: string
-        Coordinates: Point array
-        EdgeRepresentation : Edge array
-    }
-    
     let private toEdgeRepresentation points=
         points |> Array.pairwise
     

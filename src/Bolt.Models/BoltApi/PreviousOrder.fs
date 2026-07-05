@@ -1,9 +1,8 @@
-module Bolt.Models.PreviousOrder
+namespace Bolt.Models.BoltApi
 
 open System
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
-open Bolt.Models.Shared
 
 type PaymentDetails = {
     [<JsonPropertyName("text")>]
@@ -88,7 +87,7 @@ type PreviousOrder = {
     [<JsonPropertyName("status_html")>]
     StatusHtml: string
     [<JsonPropertyName("stops")>]
-    Stops: TripStop list
+    Stops: TripStop array
     [<JsonPropertyName("trip_audio_recording")>]
     TripAudioRecording: TripAudioRecording
 }

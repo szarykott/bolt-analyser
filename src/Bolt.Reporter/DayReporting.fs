@@ -2,8 +2,7 @@ module Bolt.Reporter.DayReporting
 
 open System
 open Bolt.Reporter.RideReportingSource
-open Bolt.Models.ActivityHours
-open Bolt.Infrastrucutre.Logging
+open Bolt.Models.BoltApi
 
 type DayReportingSource =
     { Day: DateOnly

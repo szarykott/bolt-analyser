@@ -1,7 +1,6 @@
 open System.IO
 open Bolt.Infrastrucutre.ces.OptionBuilder
 open Bolt.Infrastrucutre.storage.Constants.Paths
-open Bolt.Infrastrucutre.storage.Storage
 open Bolt.Models.PreviousOrder
 open Bolt.Models.PastOrderDetail
 open Bolt.Models.ActivityHours
@@ -9,6 +8,7 @@ open Bolt.Reporter
 open Bolt.Reporter.RideReportingSource
 open Bolt.Reporter.Plotting
 open Bolt.Reporter.Calculations
+open Bolt.Infrastructure.Repository
 
 let finishedRides (rides: RideReportingSource array) =
     rides
@@ -21,10 +21,9 @@ let finishedRides (rides: RideReportingSource array) =
 
 let maybeRides =
     maybe {
-        let! previousOrders: PreviousOrder seq = JsonStorage.read "previousOrders.json"
-        let! pastOrders: PastOrderDetail seq = JsonStorage.read "pastOrderDetails.json"
-
-        let! activity: ActivityHours = JsonStorage.read "activityHours.json"
+        let! previousOrders: PreviousOrder seq = PreviousOrderRepository.get ()
+        let! pastOrders: PastOrderDetail seq = PastOrderDetailRepository.get ()
+        let! activity: ActivityHours = ActivityHoursRepository.get ()
         
         let rides =
             Seq.zip previousOrders pastOrders

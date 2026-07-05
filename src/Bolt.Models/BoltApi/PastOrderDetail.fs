@@ -1,7 +1,6 @@
-module Bolt.Models.PastOrderDetail
+namespace Bolt.Models.BoltApi
 
 open System.Text.Json.Serialization
-open Bolt.Models.Shared
 
 type SummaryLabel = {
     [<JsonPropertyName("icon")>]
@@ -76,7 +75,7 @@ type OrderPayment = {
     [<JsonPropertyName("title")>]
     Title: string
     [<JsonPropertyName("items")>]
-    Items: PaymentItem list
+    Items: PaymentItem array
     [<JsonPropertyName("tip_gratitude_info")>]
     TipGratitudeInfo: TipGratitudeInfo option
 }
@@ -134,7 +133,7 @@ type AccordionItem = {
     [<JsonPropertyName("hint_action")>]
     HintAction: HintAction option
     [<JsonPropertyName("items")>]
-    Items: EarningsLineItem list
+    Items: EarningsLineItem array
     [<JsonPropertyName("indented")>]
     Indented: bool
 }

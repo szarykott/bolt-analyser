@@ -2,9 +2,7 @@ module Bolt.Reporter.RideReportingSource
 
 open System
 open System.Globalization
-open Bolt.Models.PastOrderDetail
-open Bolt.Models.PreviousOrder
-open Bolt.Models.Shared
+open Bolt.Models.BoltApi
 
 type RideTimes =
     { CreatedTimestamp: UnixTime
@@ -18,7 +16,7 @@ type RidePaymentMetadata =
 
 type RideRoute =
     { RideDistance: Distance
-      Stops: TripStop list }
+      Stops: TripStop array }
 
 type MoneyElement =
     { Title: string
@@ -89,8 +87,8 @@ let private getTimes (previousOrder: PreviousOrder) =
       RideEnd = previousOrder.RideEnd.Value }
 
 let buildReportingDataSource (previousOrder: PreviousOrder) pastOrderDetail =
-    match previousOrder.State with
-    | OrderState.Finished ->
+    match OrderState.isFinished previousOrder.State with
+    | true ->
         { Handle = previousOrder.OrderHandle
           Data =
             RideType.Finished

@@ -1,4 +1,4 @@
-module Bolt.Models.ActivityHours
+namespace Bolt.Models.BoltApi
 
 open System
 open System.Text.Json.Serialization

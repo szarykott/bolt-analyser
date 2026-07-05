@@ -1,4 +1,4 @@
-module Bolt.Models.Shared
+namespace Bolt.Models.BoltApi
 
 open System
 open System.Text.Json.Serialization
@@ -108,28 +108,16 @@ type TipGratitudeInfo = {
 
 // --- Order enums ---
 
-type OrderState =
-    | [<JsonName("client_cancelled")>] ClientCancelled
-    | [<JsonName("client_did_not_show")>] ClientDidNotShow
-    | [<JsonName("driver_did_not_respond")>] DriverDidNotRespond
-    | [<JsonName("driver_rejected")>] DriverRejected
-    | [<JsonName("finished")>] Finished
+type OrderState = string
 
-type PaymentType =
-    | [<JsonName("cash")>] Cash
-    | [<JsonName("inapp")>] InApp
+module OrderState =
+    let isFinished orderState = orderState = "finished"
 
-type PaymentMethodType =
-    | [<JsonName("adyen_blik")>] AdyenBlik
-    | [<JsonName("applepay")>] ApplePay
-    | [<JsonName("business")>] Business
-    | [<JsonName("card")>] Card
-    | [<JsonName("default")>] Default
-    | [<JsonName("googlepay")>] GooglePay
+type PaymentType = string
 
-type Brand =
-    | [<JsonName("bolt")>] Bolt
-    | [<JsonName("hopp")>] Hopp
+type PaymentMethodType = string
+
+type Brand = string
     
 /// Tip amount; on the wire "Napiwek N,NN zł" — plain Money with a
 /// constant "Napiwek " prefix.
@@ -145,7 +133,7 @@ type Tip =
 /// separator, at most one decimal, no space).
 [<Struct>]
 type Distance =
-    | Distance of decimal
+    | Distance of float
 
     member this.Value =
         let (Distance v) = this

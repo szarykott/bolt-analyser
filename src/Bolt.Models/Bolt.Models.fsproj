@@ -6,12 +6,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Include="Shared.fs" />
-      <Compile Include="History.fs" />
-      <Compile Include="ActivityHours.fs" />
-      <Compile Include="DriverProfile.fs" />
-      <Compile Include="PreviousOrder.fs" />
-      <Compile Include="PastOrderDetail.fs" />
+      <Compile Include="BoltApi\ActivityHours.fs" />
+      <Compile Include="BoltApi\DriverProfile.fs" />
+      <Compile Include="BoltApi\History.fs" />
+      <Compile Include="BoltApi\PastOrderDetail.fs" />
+      <Compile Include="Meteo.fs" />
+      <Compile Include="Ride.fs" />
+      <Compile Include="BoltApi\PreviousOrder.fs" />
+      <Compile Include="BoltApi\Shared.fs" />
       <Compile Include="Geo\District.fs" />
     </ItemGroup>
 

@@ -8,22 +8,8 @@ open System.Threading
 open Bolt.Infrastrucutre.Serialization
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
 open Bolt.Models.Geo
+open Bolt.Models.Meteo
 open Bolt.Scraper.Http.RequestBuilder
-
-[<Measure>] type celcius
-[<Measure>] type mm
-[<Measure>] type cm 
-
-type WeatherDataPoint = {
-    Temperature: float<celcius>
-    Rain: float<mm>
-    Snow: float<cm>
-}
-
-type Weather = {
-    Center: Point
-    Data: Map<DateTimeOffset, WeatherDataPoint>
-}
 
 module OpenMeteo =
     type private OpenMeteoHourly = {
@@ -47,7 +33,7 @@ module OpenMeteo =
         Array.zip z3 a4
         |> Array.map (fun ((a, b, c), d) -> (a, b, c, d))
     
-    let getWeatherData (from: DateTimeOffset) (to' : DateTimeOffset) (coord: Point) =
+    let getWeatherData (from: DateTimeOffset) (to' : DateTimeOffset) (coord: GeoPoint) =
         let fromString = from.ToString("yyyy-MM-dd")
         let toString = to'.ToString("yyyy-MM-dd")
         let url = $"https://archive-api.open-meteo.com/v1/archive?latitude={coord.Latitude}&longitude={coord.Longitude}&start_date={fromString}&end_date={toString}&hourly=temperature_2m,rain,snowfall"
@@ -69,5 +55,6 @@ module OpenMeteo =
             return zip4 data.Hourly.Time data.Hourly.Temperature data.Hourly.Rain data.Hourly.Snowfall
             |> Array.map (fun (h, a, b, c) -> (DateTimeOffset.Parse(h, null, DateTimeStyles.AssumeUniversal), { Temperature = a * 1.0<celcius>; Rain = b * 1.0<mm>; Snow = c * 1.0<cm> }))
             |> Map.ofArray
+            |> fun f -> {  Center = coord; Data = f }
         }
 

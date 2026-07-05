@@ -5,7 +5,6 @@ open System.Threading
 open System.Threading.Tasks
 open Bolt.Infrastrucutre.Logging
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
-open Bolt.Infrastrucutre.storage.Storage
 open Bolt.Infrastrucutre.storage.Constants
 open Bolt.Scraper.BoltApi.ApiModels
 open Bolt.Scraper.BoltApi.Tokens
@@ -13,6 +12,7 @@ open Bolt.Scraper.BoltApi.bolt.BoltApi
 open Bolt.Scraper.Config
 open Bolt.Scraper.Krakow.Districts
 open Bolt.Scraper.Meteo.OpenMeteo
+open Bolt.Infrastructure.Repository
 
 let serialize element =
     let options = JsonSerializerOptions(WriteIndented = true)
@@ -53,58 +53,50 @@ let scrapeBoltData () =
             let! bolt = BoltClient.createBolt cfg email tokenCallback CancellationToken.None
     
             do! BoltClient.getDriverProfile bolt
-                |>! JsonStorage.write "driverProfile.json"
+                |>! DriverProfileRepository.saveUnstructuredDangerous
     
             do! BoltClient.getActivityHours bolt
-                |>! JsonStorage.write "activityHours.json"
+                |>! ActivityHoursRepository.saveUnstructuredDangerous
             
             let! handles, history = BoltClient.getOrderHistory bolt
             
-            history |> JsonStorage.write "orderHistory.json"
+            history |> OrderHistoryRepository.saveUnstructuredDangerous
     
             do! handles
                 |> Seq.map (BoltClient.getPreviousOrder bolt)
                 |> Task.WhenAll
                 |> sequenceResults
-                |>! JsonStorage.write "previousOrders.json"
+                |>! PreviousOrderRepository.saveUnstructuredDangerous
     
             do! handles
                 |> Seq.map (BoltClient.getPastOrderDetails bolt)
                 |> Task.WhenAll
                 |> sequenceResults
-                |>! JsonStorage.write "pastOrderDetails.json"
+                |>! PastOrderDetailRepository.saveUnstructuredDangerous
         }
-    
-    match result.Result with
-    | Ok _ -> printfn "Scraping Bolt finished."
-    | Error e -> printfn $"{e}"
+        
+    task {
+        let! r = result
+        return Result.mapError _.ToString() r
+    }
 
 let scrapeKrakowGeoData () =
-    let result =
-        taskResult {
-            do! getKrakowDistricts CancellationToken.None
-                |>! JsonStorage.write "krakowDistricts.json" 
-        }
-    
-    match result.Result with
-    | Ok _ -> printfn "Scraping Krakow districts finished."
-    | Error e -> printfn $"{e}"
+    taskResult {
+       do! getKrakowDistricts CancellationToken.None
+           |>! DistrictsRepository.save
+    }
 
 let scrapeMeteoData () =
-    let result =
-        taskResult {
-            do! getWeatherData
-                    (DateTimeOffset.Parse("2026-03-15"))
-                    (DateTimeOffset.Parse("2026-06-30"))
-                    { Latitude = 50.06255f; Longitude = 19.923765f  }
-                |>! JsonStorage.write "krakowMeteoData.json"
-        }
-    
-    match result.Result with
-    | Ok _ -> printfn "Scraping Meteo data finished."
-    | Error e -> printfn $"{e}"
+    taskResult {
+        do! getWeatherData
+                (DateTimeOffset.Parse("2026-03-15"))
+                (DateTimeOffset.Parse("2026-06-30"))
+                { Latitude = 50.06255f; Longitude = 19.923765f  }
+            |>! MeteoRepository.save
+    }
 
-//========== PROGRAM ================//
+
+//=============== PROGRAM ================//
 
 printfn "Welcome to Bolt & stuff scraper and data analyser!"
 
@@ -118,8 +110,13 @@ printfn "(3) Scrape Meteo data"
 
 let action = Console.ReadLine()
 
-match action with
-| "1" -> scrapeBoltData ()
-| "2" -> scrapeKrakowGeoData ()
-| "3" -> scrapeMeteoData ()
-| _   -> failwith "Unknown action selected"
+let result =
+    match action with
+    | "1" -> scrapeBoltData ()
+    | "2" -> scrapeKrakowGeoData ()
+    | "3" -> scrapeMeteoData ()
+    | _   -> failwith "Unknown action selected"
+
+match result.Result with
+    | Ok _ -> printfn "Scraping Meteo data finished."
+    | Error e -> printfn $"{e}"

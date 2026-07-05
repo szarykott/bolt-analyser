@@ -13,6 +13,13 @@
         <Compile Include="ces\TaskResultBuilder.fs"/>
         <Compile Include="ces\ResultBuilder.fs"/>
         <Compile Include="ces\OptionBuilder.fs"/>
+        <Compile Include="Repository\PreviousOrderRepository.fs" />
+        <Compile Include="Repository\OrderHistoryRepository.fs" />
+        <Compile Include="Repository\PastOrderDetailRepository.fs" />
+        <Compile Include="Repository\ActivityHoursRepository.fs" />
+        <Compile Include="Repository\DriverProfileRepository.fs" />
+        <Compile Include="Repository\DistrictsRepository.fs" />
+        <Compile Include="Repository\MeteoRepository.fs" />
     </ItemGroup>
 
     <ItemGroup>

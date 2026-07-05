@@ -44,7 +44,7 @@ let getKrakowDistricts (ct: CancellationToken) =
     
     let responseToDistrict (resp : Feature) =
         let name = resp.Properties.Name
-        let points : Point array =
+        let points : GeoPoint array =
             resp.Geometry.Coordinates
                 |> Array.collect id
                 |> Array.collect id

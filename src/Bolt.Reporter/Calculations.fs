@@ -1,7 +1,7 @@
 module Bolt.Reporter.Calculations
 
 open System
-open Bolt.Models.Shared
+open Bolt.Models.BoltApi
 open Bolt.Reporter.RideReportingSource
 
 // --- Private helpers ---
