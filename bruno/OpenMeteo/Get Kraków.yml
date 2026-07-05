@@ -1,0 +1,34 @@
+info:
+  name: Get Kraków
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://archive-api.open-meteo.com/v1/archive?latitude=50.059784&longitude=19.947292&start_date=2026-03-15&end_date=2026-06-30&hourly=temperature_2m,rain,snowfall&timezone=Europe%2FWarsaw
+  params:
+    - name: latitude
+      value: "50.059784"
+      type: query
+    - name: longitude
+      value: "19.947292"
+      type: query
+    - name: start_date
+      value: 2026-03-15
+      type: query
+    - name: end_date
+      value: 2026-06-30
+      type: query
+    - name: hourly
+      value: temperature_2m,rain,snowfall
+      type: query
+    - name: timezone
+      value: Europe%2FWarsaw
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

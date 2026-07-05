@@ -13,6 +13,7 @@
     <Compile Include="BoltApi\LowLevel.fs" />
     <Compile Include="BoltApi\BoltApi.fs" />
     <Compile Include="Krakow\Districts.fs" />
+    <Compile Include="Meteo\OpenMeteo.fs" />
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -5,10 +5,13 @@ info:
 
 http:
   method: GET
-  url: https://msip3.um.krakow.pl/server/services/Pobieranie/Dzielnice/MapServer/WFSServer?request=GetFeatureType
+  url: https://msip3.um.krakow.pl/server/services/Pobieranie/Dzielnice/MapServer/WFSServer?request=DescribeFeatureType&service=WFS
   params:
     - name: request
-      value: GetFeatureType
+      value: DescribeFeatureType
+      type: query
+    - name: service
+      value: WFS
       type: query
   auth: inherit
 

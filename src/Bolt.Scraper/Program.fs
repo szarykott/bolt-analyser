@@ -12,6 +12,7 @@ open Bolt.Scraper.BoltApi.Tokens
 open Bolt.Scraper.BoltApi.bolt.BoltApi
 open Bolt.Scraper.Config
 open Bolt.Scraper.Krakow.Districts
+open Bolt.Scraper.Meteo.OpenMeteo
 
 let serialize element =
     let options = JsonSerializerOptions(WriteIndented = true)
@@ -89,6 +90,20 @@ let scrapeKrakowGeoData () =
     | Ok _ -> printfn "Scraping Krakow districts finished."
     | Error e -> printfn $"{e}"
 
+let scrapeMeteoData () =
+    let result =
+        taskResult {
+            do! getWeatherData
+                    (DateTimeOffset.Parse("2026-03-15"))
+                    (DateTimeOffset.Parse("2026-06-30"))
+                    { Latitude = 50.06255f; Longitude = 19.923765f  }
+                |>! JsonStorage.write "krakowMeteoData.json"
+        }
+    
+    match result.Result with
+    | Ok _ -> printfn "Scraping Meteo data finished."
+    | Error e -> printfn $"{e}"
+
 //========== PROGRAM ================//
 
 printfn "Welcome to Bolt & stuff scraper and data analyser!"
@@ -99,10 +114,12 @@ Paths.ensureStorageExists ()
 printfn "Select one of following actions: "
 printfn "(1) Scrape Bolt data "
 printfn "(2) Scrape Krakow district data"
+printfn "(3) Scrape Meteo data"
 
 let action = Console.ReadLine()
 
 match action with
 | "1" -> scrapeBoltData ()
 | "2" -> scrapeKrakowGeoData ()
+| "3" -> scrapeMeteoData ()
 | _   -> failwith "Unknown action selected"
