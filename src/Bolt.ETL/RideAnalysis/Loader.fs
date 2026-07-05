@@ -35,7 +35,6 @@ let saveRidesDataSourceToCsv (data: RidesDataSource) =
         "price_pln"
         "price_per_km"
         "distance_km"
-        "duration_min"
         "part_of_day"
         "day_of_week"
         "pickup_district"
@@ -51,7 +50,6 @@ let saveRidesDataSourceToCsv (data: RidesDataSource) =
             r.PricePln.ToString("F2")
             r.PricePerKm.ToString("F2")
             r.Distance.ToString()
-            r.DurationMin.ToString("F2")
             r.PartOfDay.ToString()
             r.DayOfWeek.ToString()
             r.PickupDistrict.Value.ToString()

@@ -11,7 +11,6 @@ type RideRow = {
     PricePln: decimal
     PricePerKm: decimal
     Distance: float<km>
-    DurationMin: float
     PartOfDay: PartOfDay
     DayOfWeek: DayOfWeek
     PickupDistrict: DistrictName
@@ -37,7 +36,6 @@ module RideRow =
             PricePln = earned
             PricePerKm = earned / decimal distance
             Distance = distance
-            DurationMin = (end' - start).TotalMinutes
             PartOfDay = PartOfDay.fromDate start
             DayOfWeek = start.DayOfWeek
             PaymentType = ride.Payment.PaymentMetadata.PaymentType
