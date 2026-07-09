@@ -1,9 +1,9 @@
 import pandas as pd
 import statsmodels.api as sm
 
-df = pd.read_csv("~/.config/.bolt-app/ridesDataSource.csv", delimiter=';')
-y = df["price_per_km"]                                # one target per run
-drop = ["price_pln", "price_per_km"]                            # + mirrors removed in STEP 2
+df = pd.read_csv("~/.config/.bolt-app/ridesDataSource2.csv", delimiter=';')
+y = df["price_pln"]                                # one target per run
+drop = ["price_pln"]                            # + mirrors removed in STEP 2
 X = df.drop(columns=drop)
 
 X = pd.get_dummies(X, drop_first=True).astype(float)    # categoricals → 0/1

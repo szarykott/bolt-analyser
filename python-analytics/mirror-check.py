@@ -1,9 +1,9 @@
 import pandas as pd
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-df = pd.read_csv("~/.config/.bolt-app/ridesDataSource.csv", delimiter=';')            # or hours.csv
+df = pd.read_csv("~/.config/.bolt-app/ridesDataSource2.csv", delimiter=';')            # or hours.csv
 pd.set_option("display.max_columns", None, "display.width", None)
-targets = ["price_pln", "price_per_km"]
+targets = ["price_pln"]
 feat = df.drop(columns=targets)
 
 # 2a — numeric mirrors (Pearson)

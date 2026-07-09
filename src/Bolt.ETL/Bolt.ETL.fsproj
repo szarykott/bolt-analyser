@@ -10,8 +10,8 @@
     <Compile Include="Geo\DistrictAssignment.fs" />
     <Compile Include="Meteo\Model.fs" />
     <Compile Include="RideFactory.fs" />
-    <Compile Include="RideAnalysis\Model.fs" />
-    <Compile Include="RideAnalysis\Loader.fs" />
+    <Compile Include="Analysis\PerRide1.fs" />
+    <Compile Include="Analysis\PerRide2.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
