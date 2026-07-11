@@ -7,3 +7,6 @@ PerRide1.prepareRideAnalysisSource ()
 
 PerRide2.prepareRideAnalysisSource ()
 |> PerRide2.saveRidesDataSourceToCsv
+
+RideClustering.prepareRideAnalysisSource ()
+|> RideClustering.saveRidesDataSourceToCsv
