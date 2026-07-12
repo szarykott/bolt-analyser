@@ -12,6 +12,7 @@
     <Compile Include="RideFactory.fs" />
     <Compile Include="Analytics\AnalyticsContracts.fs" />
     <Compile Include="Analytics\AnalyticsClient.fs" />
+    <Compile Include="Plotting\ClusterMap.fs" />
     <Compile Include="Analysis\PerRide1.fs" />
     <Compile Include="Analysis\PerRide2.fs" />
     <Compile Include="Analysis\RideClustering.fs" />
@@ -21,6 +22,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Bolt.Infrastructure\Bolt.Infrastructure.fsproj" />
     <ProjectReference Include="..\Bolt.Models\Bolt.Models.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Plotly.NET" Version="5.1.0" />
   </ItemGroup>
 
 </Project>

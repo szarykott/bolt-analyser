@@ -63,20 +63,22 @@ module RideClustering =
 
         CsvStorage.write "rideClusteringDataSource.csv" { Headers = headers; Rows = data }
 
-    let runRemoteClustering (data: RidesDataSource) =
-        let points =
-            data.Rows
-            |> Array.map (fun r -> {
-                Latitude = r.Latitude
-                Longitude = r.Longitude
-                Hour = float r.Time.Hour + float r.Time.Minute / 60.0
-            })
+    let toStPoints (data: RidesDataSource) : StPoint array =
+        data.Rows
+        |> Array.map (fun r -> {
+            Latitude = r.Latitude
+            Longitude = r.Longitude
+            Hour = float r.Time.Hour + float r.Time.Minute / 60.0
+        })
+
+    let runRemoteClustering (data: RidesDataSource) : StDbscanResponse =
+        let points = toStPoints data
 
         let response =
             AnalyticsClient.stDbscan {
                 Points = points
-                EpsKm = 0.5
-                EpsHours = 0.5
+                EpsKm = 0.7
+                EpsHours = 1
                 MinSamples = 5
             }
 
@@ -110,3 +112,5 @@ module RideClustering =
             Headers = [| "cluster"; "size"; "centroid_latitude"; "centroid_longitude"; "mean_hour" |]
             Rows = clusterRows
         }
+
+        response
