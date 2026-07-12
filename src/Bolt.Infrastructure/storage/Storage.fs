@@ -27,6 +27,7 @@ module JsonStorage =
         File.WriteAllText(path, content)
     
     let create file =
+        ensureStorageExists () |> ignore
         let storageLocation = getQualifiedStorageLocation file
         {
             Read = fun () -> fromFile storageLocation
@@ -36,10 +37,24 @@ module JsonStorage =
     let write file data =
         let storage = create file
         storage.Write data
-        
+
     let read file =
         let storage = create file
         storage.Read ()
+
+    let createProfile profile file =
+        ensureProfileStorageExists profile |> ignore
+        let storageLocation = getProfileStorageLocation profile file
+        {
+            Read = fun () -> fromFile storageLocation
+            Write = toFile storageLocation
+        }
+
+    let writeProfile profile file data =
+        (createProfile profile file).Write data
+
+    let readProfile profile file =
+        (createProfile profile file).Read()
 
 module CsvStorage =
     type CsvFormat = {
