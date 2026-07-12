@@ -20,6 +20,7 @@
         <Compile Include="Repository\DriverProfileRepository.fs" />
         <Compile Include="Repository\DistrictsRepository.fs" />
         <Compile Include="Repository\MeteoRepository.fs" />
+        <Compile Include="Repository\ScrapeMetadataRepository.fs" />
     </ItemGroup>
 
     <ItemGroup>

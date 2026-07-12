@@ -29,9 +29,9 @@ module RideClustering =
                 Time = ride.Times.CreatedTimestamp
             }
 
-    let prepareRideAnalysisSource () : RidesDataSource =
-        let previousRides = (PreviousOrderRepository.get ()).Value |> Array.ofSeq
-        let pastOrders = (PastOrderDetailRepository.get ()).Value |> Array.ofSeq
+    let prepareRideAnalysisSource (email: string) : RidesDataSource =
+        let previousRides = (PreviousOrderRepository.get email).Value |> Array.ofSeq
+        let pastOrders = (PastOrderDetailRepository.get email).Value |> Array.ofSeq
 
         let finishedRide (ride: Ride) : FinishedRide option =
             match ride.Data with

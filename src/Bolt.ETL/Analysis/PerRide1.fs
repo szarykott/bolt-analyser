@@ -50,9 +50,9 @@ module PerRide1 =
                 Temperature = TemperatureBucket.fromCelcius weatherData.Temperature
             }
             
-    let prepareRideAnalysisSource () : RidesDataSource =
-        let previousRides = (PreviousOrderRepository.get ()).Value |> Array.ofSeq
-        let pastOrders = (PastOrderDetailRepository.get ()).Value |> Array.ofSeq
+    let prepareRideAnalysisSource (email: string) : RidesDataSource =
+        let previousRides = (PreviousOrderRepository.get email).Value |> Array.ofSeq
+        let pastOrders = (PastOrderDetailRepository.get email).Value |> Array.ofSeq
         let meteo = (MeteoRepository.get ()).Value
         let districts = (DistrictsRepository.get ()).Value
     

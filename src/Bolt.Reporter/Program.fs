@@ -1,3 +1,4 @@
+open System
 open System.IO
 open Bolt.Infrastrucutre.ces.OptionBuilder
 open Bolt.Infrastrucutre.storage.Constants.Paths
@@ -17,11 +18,18 @@ let finishedRides (rides: RideReportingSource array) =
 
 // App
 
+let email =
+    match Environment.GetCommandLineArgs() |> Array.tryItem 1 with
+    | Some e -> e
+    | None ->
+        printf "Input email address used for Bolt Driver app: "
+        Console.ReadLine()
+
 let maybeRides =
     maybe {
-        let! previousOrders: PreviousOrder seq = PreviousOrderRepository.get ()
-        let! pastOrders: PastOrderDetail seq = PastOrderDetailRepository.get ()
-        let! activity: ActivityHours = ActivityHoursRepository.get ()
+        let! previousOrders: PreviousOrder seq = PreviousOrderRepository.get email
+        let! pastOrders: PastOrderDetail seq = PastOrderDetailRepository.get email
+        let! activity: ActivityHours = ActivityHoursRepository.get email
         
         let rides =
             Seq.zip previousOrders pastOrders

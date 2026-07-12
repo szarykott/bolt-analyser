@@ -5,12 +5,12 @@ module PastOrderDetailRepository =
     open Bolt.Models.BoltApi
 
     let private fileName = "pastOrderDetails.json"
-    
-    let saveUnstructuredDangerous x =
-        JsonStorage.write fileName x
-    
-    let save (pastOrderDetails: PastOrderDetail seq) =
-        JsonStorage.write fileName pastOrderDetails
-    
-    let get () : PastOrderDetail seq option =
-        JsonStorage.read fileName
+
+    let saveUnstructuredDangerous email x =
+        JsonStorage.writeProfile email fileName x
+
+    let save email (pastOrderDetails: PastOrderDetail seq) =
+        JsonStorage.writeProfile email fileName pastOrderDetails
+
+    let get email : PastOrderDetail seq option =
+        JsonStorage.readProfile email fileName

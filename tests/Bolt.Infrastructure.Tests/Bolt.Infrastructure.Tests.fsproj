@@ -14,6 +14,11 @@
 
     <ItemGroup>
         <Compile Include="Storage.Tests.fs" />
+        <Compile Include="ScrapeMetadata.Tests.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

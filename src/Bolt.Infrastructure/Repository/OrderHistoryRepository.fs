@@ -6,12 +6,12 @@ module OrderHistoryRepository =
     open Bolt.Models.BoltApi
 
     let private fileName = "orderHistory.json"
-    
-    let saveUnstructuredDangerous x =
-        JsonStorage.write fileName x
-    
-    let save (pastOrderDetails: OrderHistory seq) =
-        JsonStorage.write fileName pastOrderDetails
-    
-    let get () : OrderHistory seq option =
-        JsonStorage.read fileName
+
+    let saveUnstructuredDangerous email x =
+        JsonStorage.writeProfile email fileName x
+
+    let save email (pastOrderDetails: OrderHistory seq) =
+        JsonStorage.writeProfile email fileName pastOrderDetails
+
+    let get email : OrderHistory seq option =
+        JsonStorage.readProfile email fileName

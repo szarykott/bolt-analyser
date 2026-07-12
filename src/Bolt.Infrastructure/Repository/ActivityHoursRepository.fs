@@ -6,12 +6,12 @@ module ActivityHoursRepository =
     open Bolt.Models.BoltApi
 
     let private fileName = "activityHours.json"
-    
-    let saveUnstructuredDangerous x =
-        JsonStorage.write fileName x
-    
-    let save (pastOrderDetails: ActivityHours) =
-        JsonStorage.write fileName pastOrderDetails
-    
-    let get () : ActivityHours option =
-        JsonStorage.read fileName
+
+    let saveUnstructuredDangerous email x =
+        JsonStorage.writeProfile email fileName x
+
+    let save email (pastOrderDetails: ActivityHours) =
+        JsonStorage.writeProfile email fileName pastOrderDetails
+
+    let get email : ActivityHours option =
+        JsonStorage.readProfile email fileName
