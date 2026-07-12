@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Config.fs" />
     <Compile Include="Http.fs" />
     <Compile Include="BoltApi\Tokens.fs" />
     <Compile Include="BoltApi\ApiModels.fs" />
@@ -14,10 +13,6 @@
     <Compile Include="BoltApi\BoltApi.fs" />
     <Compile Include="Krakow\Districts.fs" />
     <Compile Include="Meteo\OpenMeteo.fs" />
-    <Content Include="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
