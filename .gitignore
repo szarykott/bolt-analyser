@@ -1,5 +1,7 @@
 **/bin
 **/obj
+**/.venv
+**/__pycache__
 **/.docs
 .idea
 **/appsettings.json

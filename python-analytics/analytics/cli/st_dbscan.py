@@ -1,10 +1,6 @@
 """ST-DBSCAN clustering of ride events in space + hour-of-day.
 
 Input CSV (';' delimited): latitude, longitude (decimal degrees), time (HH:MM).
-Two independent radii: spatial (--eps-km, haversine) and temporal (--eps-hours,
-cyclic over midnight). Implemented as sklearn DBSCAN over a precomputed matrix
-where pairs outside the temporal radius get a sentinel distance that can never
-be within eps. Dense O(n^2) matrix - fine below ~30k rows.
 
 Outputs: <input stem>-clustered.csv (input + cluster column, -1 = noise),
 <input stem>-clusters.png, console summary.
@@ -15,15 +11,12 @@ import sys
 from pathlib import Path
 
 import matplotlib
-import numpy as np
 import pandas as pd
-from sklearn.cluster import DBSCAN
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-EARTH_RADIUS_KM = 6371.0
-UNREACHABLE_KM = 1e12  # sentinel: farther than any eps, keeps matrix finite
+from analytics.core.clustering import circular_mean_hour, run_st_dbscan
 
 # dataviz palette (light mode, validated): 8 fixed categorical slots
 SERIES_COLORS = ["#2a78d6", "#1baf7a", "#eda100", "#008300",
@@ -65,27 +58,6 @@ def load(csv_path: Path) -> pd.DataFrame:
     if df.empty:
         sys.exit("error: no valid rows after parsing")
     return df
-
-
-def st_distance_matrix(lat_deg, lon_deg, hours, eps_hours):
-    lat = np.radians(lat_deg)[:, None]
-    lon = np.radians(lon_deg)[:, None]
-    dlat = lat - lat.T
-    dlon = lon - lon.T
-    a = np.sin(dlat / 2) ** 2 + np.cos(lat) * np.cos(lat.T) * np.sin(dlon / 2) ** 2
-    spatial_km = 2 * EARTH_RADIUS_KM * np.arcsin(np.sqrt(np.clip(a, 0, 1)))
-
-    dt = np.abs(hours[:, None] - hours[None, :])
-    dt = np.minimum(dt, 24.0 - dt)  # cyclic: 23:50 vs 00:10 = 20 min
-
-    spatial_km[dt > eps_hours] = UNREACHABLE_KM
-    return spatial_km
-
-
-def circular_mean_hour(hours):
-    ang = hours / 24.0 * 2 * np.pi
-    mean = np.arctan2(np.sin(ang).mean(), np.cos(ang).mean())
-    return (mean * 24.0 / (2 * np.pi)) % 24.0
 
 
 def summarize(df):
@@ -154,12 +126,10 @@ def main():
     args = parse_args()
     df = load(args.csv_path)
 
-    dist = st_distance_matrix(df["latitude"].to_numpy(),
-                              df["longitude"].to_numpy(),
-                              df["hour"].to_numpy(), args.eps_hours)
-    labels = DBSCAN(eps=args.eps_km, min_samples=args.min_samples,
-                    metric="precomputed").fit(dist).labels_
-    df["cluster"] = labels
+    result = run_st_dbscan(df["latitude"].to_numpy(), df["longitude"].to_numpy(),
+                           df["hour"].to_numpy(), eps_km=args.eps_km,
+                           eps_hours=args.eps_hours, min_samples=args.min_samples)
+    df["cluster"] = result["labels"]
 
     out = args.out or args.csv_path.with_name(args.csv_path.stem + "-clustered.csv")
     df.drop(columns=["hour"]).to_csv(out, sep=";", index=False)

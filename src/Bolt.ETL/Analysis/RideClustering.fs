@@ -5,6 +5,7 @@ module RideClustering =
     open System
     open System.Globalization
     open Bolt.ETL
+    open Bolt.ETL.Analytics
     open Bolt.Infrastructure.Repository
     open Bolt.Infrastrucutre.storage.Storage
     open Bolt.Models
@@ -61,3 +62,51 @@ module RideClustering =
             |])
 
         CsvStorage.write "rideClusteringDataSource.csv" { Headers = headers; Rows = data }
+
+    let runRemoteClustering (data: RidesDataSource) =
+        let points =
+            data.Rows
+            |> Array.map (fun r -> {
+                Latitude = r.Latitude
+                Longitude = r.Longitude
+                Hour = float r.Time.Hour + float r.Time.Minute / 60.0
+            })
+
+        let response =
+            AnalyticsClient.stDbscan {
+                Points = points
+                EpsKm = 0.5
+                EpsHours = 0.5
+                MinSamples = 5
+            }
+
+        JsonStorage.write "rideClustering.result.json" response
+
+        let clusteredRows =
+            Array.zip data.Rows response.Labels
+            |> Array.map (fun (r, label) -> [|
+                r.Latitude.ToString("F5", CultureInfo.InvariantCulture)
+                r.Longitude.ToString("F5", CultureInfo.InvariantCulture)
+                r.Time.ToString("HH:mm", CultureInfo.InvariantCulture)
+                string label
+            |])
+
+        CsvStorage.write "rideClusteringDataSource-clustered.csv" {
+            Headers = [| "latitude"; "longitude"; "time"; "cluster" |]
+            Rows = clusteredRows
+        }
+
+        let clusterRows =
+            response.Clusters
+            |> Array.map (fun c -> [|
+                string c.Id
+                string c.Size
+                c.CentroidLatitude.ToString(CultureInfo.InvariantCulture)
+                c.CentroidLongitude.ToString(CultureInfo.InvariantCulture)
+                c.MeanHour.ToString(CultureInfo.InvariantCulture)
+            |])
+
+        CsvStorage.write "rideClusters.csv" {
+            Headers = [| "cluster"; "size"; "centroid_latitude"; "centroid_longitude"; "mean_hour" |]
+            Rows = clusterRows
+        }

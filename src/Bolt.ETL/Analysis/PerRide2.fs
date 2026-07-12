@@ -3,7 +3,9 @@ namespace Bolt.ETL.Analysis
 module PerRide2 =
     
     open System
+    open System.Globalization
     open Bolt.ETL
+    open Bolt.ETL.Analytics
     open Bolt.ETL.Geo
     open Bolt.ETL.Geo.DistrictAssignment
     open Bolt.ETL.Meteo.Model
@@ -132,3 +134,64 @@ module PerRide2 =
             |])
     
         CsvStorage.write "ridesDataSource2.csv" { Headers = headers; Rows = data }
+
+    // JSON rows for the analytics service, keyed by the CSV header names.
+    // Units of measure / decimal unwrapped before boxing so values serialize
+    // as plain JSON numbers; bools stay bools (service keeps false <> 0.0).
+    let toAnalyticsRows (data: RidesDataSource) : Map<string, obj> array =
+        data.Rows
+        |> Array.map (fun r ->
+            Map.ofList [
+                "price_pln", box (float r.PricePln)
+                "distance_km", box (float r.Distance)
+                "is_rush_hour", box r.IsRushHour
+                "is_weekend", box r.IsWeekend
+                "pickup_district", box r.PickupDistrict
+                "rain", box r.Rain
+                "snow", box r.Snow
+                "temperature_bucket", box (r.Temperature.ToString())
+            ])
+
+    let private formatFloat (value: float option) =
+        value
+        |> Option.map (fun v -> v.ToString(CultureInfo.InvariantCulture))
+        |> Option.defaultValue ""
+
+    let runRemoteRegression (data: RidesDataSource) =
+        let response =
+            AnalyticsClient.olsRegression {
+                Rows = toAnalyticsRows data
+                Target = "price_pln"
+                DropColumns = [||]
+                CategoricalColumns = None
+                Standardize = true
+            }
+
+        JsonStorage.write "perRide2.olsRegression.json" response
+
+        let rows =
+            response.Coefficients
+            |> Array.map (fun c -> [|
+                c.Name
+                formatFloat c.Coef
+                formatFloat c.StdErr
+                formatFloat c.TValue
+                formatFloat c.PValue
+                formatFloat c.CiLow
+                formatFloat c.CiHigh
+            |])
+
+        CsvStorage.write "perRide2.olsCoefficients.csv" {
+            Headers = [| "name"; "coef"; "std_err"; "t_value"; "p_value"; "ci_low"; "ci_high" |]
+            Rows = rows
+        }
+
+    let runRemoteMirrorCheck (data: RidesDataSource) =
+        let response =
+            AnalyticsClient.mirrorCheck {
+                Rows = toAnalyticsRows data
+                TargetColumns = [| "price_pln" |]
+                GroupMeans = Some { By = "pickup_district"; Value = "distance_km" }
+            }
+
+        JsonStorage.write "perRide2.mirrorCheck.json" response
