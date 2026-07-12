@@ -1,7 +1,7 @@
 # Bolt.Web — Interactive Analysis Web Server
 
 **Date:** 2026-07-12
-**Status:** Approved design (rev 2 — security & session model)
+**Status:** Approved design (rev 3 — WebSocket transport)
 
 ## Goal
 
@@ -16,13 +16,14 @@ a standalone interactive HTML file.
 
 | Topic | Decision |
 |---|---|
-| Bolt authentication | Stateless magic-link endpoint: whenever it is hit with a magic-link URL, the server attempts login with it — no server-side "pending auth" session required |
+| Transport | WebSocket (htmx `ws` extension). Job is bound 1:1 to the socket; progress push, magic-link submit, and report delivery all travel over the socket. No polling, no bearer token in any URL |
+| Bolt authentication | Stateless magic-link handling: whenever a magic-link message arrives on the socket, the server attempts login with it — no server-side "pending auth" state required |
 | Token cache | Tokens are cached to disk **only when the `DEBUG` compile flag is set**. In Release builds tokens live in process memory only (disk caching of tokens is a security risk) |
+| Session lifetime | Job lives while its socket lives. On disconnect the pipeline is cancelled and the job evicted. No reconnect/resume token — a refresh mid-run means starting over (freshness cache softens the cost) |
 | Storage | Per-email subfolders: `~/.config/.bolt-app/<email>/…` plus `metadata.json` with scrape timestamp. Meteo and districts stay shared (not per-email) |
 | Analysis output | Structured results: Plotly charts as figure JSON (rendered client-side) plus HTML tables |
-| Progress UX | HTMX polling with a server-generated random GUID poll key; poll replies require exact match of poll key + client IP + User-Agent |
-| Session lifetime | Job entry evicted 1 minute after analysis finishes OR immediately after the frontend successfully pulls the finished report, whichever comes first |
-| HTTPS | Requests are redirected to HTTPS unless the `DEBUG` compile flag is set |
+| HTTPS | Requests are redirected to HTTPS (sockets use WSS) unless the `DEBUG` compile flag is set |
+| WebSocket security | `Origin` header validated on upgrade (mandatory — WebSocket handshakes bypass same-origin policy). Keepalive pings prevent proxy idle timeouts |
 | Python service | Runs separately (started by the user); F# calls its URL from `appsettings.json` |
 | Downloaded report | Standalone HTML assembled client-side from the delivered report (plotly.js and htmx from CDN; needs internet to view) |
 | Web framework | Plain ASP.NET Core minimal APIs on Kestrel, in F#. No Giraffe or other third-party web framework |
@@ -32,8 +33,9 @@ a standalone interactive HTML file.
 
 ```
 Bolt.Web (new, F# ASP.NET Core minimal APIs on Kestrel)
-  ├─ HTTP routes + HTMX fragments + report rendering (Views module)
-  ├─ JobRegistry (in-memory, keyed by poll-key GUID)
+  ├─ GET / page, /ws WebSocket endpoint, /health
+  ├─ Views module (HTML fragments pushed over socket)
+  ├─ JobRegistry (in-memory, one job per live socket)
   └─ references ↓
 Bolt.Scraper (pure library — Program.fs removed)
   └─ ScrapePipeline module: auth (magic-link exchange), rides, meteo gap-fill
@@ -54,24 +56,24 @@ python-analytics: unchanged, runs separately, base URL from appsettings
   The pipeline computes the ride date range, checks coverage, fetches only the
   missing ranges, merges, and saves. Writes are guarded by a simple lock.
 - **HTML generation:** no template engine. A small `Views` module in Bolt.Web
-  builds HTML with interpolated strings. The same functions produce HTMX
-  fragments and the report.
+  builds HTML with interpolated strings. The same functions produce the page,
+  socket-pushed fragments, and the report.
 
 ## Pipeline & Job State
 
-Jobs live in an in-memory registry (`ConcurrentDictionary<PollKey, Job>`).
+Each accepted WebSocket connection owns at most one job. The registry maps
+live connections to jobs and exists only for bookkeeping (same-email conflict
+checks, shutdown cleanup) — clients never hold an identifier.
 
 **Job record:**
 
 ```fsharp
 type Job = {
-    PollKey: Guid              // generated server-side with RandomNumberGenerator
     Email: string
-    ClientIp: string           // captured at job creation
-    UserAgent: string          // captured at job creation
-    State: JobState            // mutable/observable progress state
-    Tokens: TokenStore option  // in-memory only in Release builds
-    FinishedAt: DateTimeOffset option
+    Socket: WebSocket             // the owning connection
+    State: JobState               // mutable/observable progress state
+    Tokens: TokenStore option     // in-memory only in Release builds
+    Cancellation: CancellationTokenSource   // fired on socket close
 }
 ```
 
@@ -81,7 +83,7 @@ type Job = {
 Requested
  → CheckingCache        data exists and scraped < 14 days ago? → skip to RunningAnalysis
  → Authenticating       DEBUG builds: disk token cache tried first; Release: memory only
- → AwaitingMagicLink    page shows paste-URL form; hitting the magic-link endpoint resumes
+ → AwaitingMagicLink    client shown paste-URL form; magic-link socket message resumes
  → ScrapingRides        profile, activity hours, order history, per-order details
  → FetchingMeteo        compute ride date range, fill missing coverage
  → RunningAnalysis      PerRide1, PerRide2 (+ remote OLS/mirror-check),
@@ -89,49 +91,60 @@ Requested
  → Done(AnalysisReport) | Failed(step, error)
 ```
 
-- **Stateless magic-link handling:** the magic-link endpoint does not depend on
-  any pending server-side auth session. Whenever it is hit with an email, a
-  magic-link URL, and a valid poll key, the server attempts the token exchange
-  with that URL and, on success, stores the resulting tokens on the job and
-  resumes (or starts) the scrape. There is no check that "an email was sent
-  previously".
+**Socket protocol** (all server→client payloads are HTML fragments consumed by
+htmx `ws` swaps; client→server messages are htmx `ws-send` form submissions):
+
+```
+client → server:  start-analysis { email }
+client → server:  magic-link     { email, url }
+server → client:  progress fragment        (state + counters, on every transition)
+server → client:  magic-link form fragment (on AwaitingMagicLink)
+server → client:  error fragment           (on Failed; includes retry form)
+server → client:  report fragment          (on Done; full report, ends the job)
+```
+
+- **Stateless magic-link handling:** a `magic-link` message triggers a token
+  exchange attempt with the given URL regardless of prior state — no check that
+  "an email was sent previously". On success the tokens are stored on the job
+  and the pipeline resumes (or starts).
 - **Token caching:** `TokenStore` disk persistence (`fromPrevious` / save) is
   compiled in only under `#if DEBUG`. Release builds never write tokens to disk
   and never read a cached token file; tokens exist only inside the `Job` record.
 - **Freshness:** `metadata.json` in the per-email folder records `scrapedAt`.
-  A cache hit skips only scraping and meteo; analyses always re-run (they are
-  cheap and this keeps the report path single-track).
-- **Progress detail:** state enum plus optional counters
-  (e.g., "order details 120/450") surfaced through the status endpoint.
-- **Failure:** any step error → `Failed` with step name and message shown on
-  the page; retry starts a new job (new poll key).
-- **Concurrency:** poll keys are unique per client, and poll replies are bound
-  to the originating IP + User-Agent, so a second browser cannot attach to a
-  running job. A new request for an email whose job is already running is
-  rejected with an "analysis already in progress, try again later" fragment.
-- **Eviction:**
-  - `Done` jobs: removed 1 minute after `FinishedAt`, or immediately after the
-    frontend successfully pulls the finished report — whichever comes first.
-  - `AwaitingMagicLink` jobs: removed after a 10-minute timeout.
-  - `Failed` jobs: removed 1 minute after failure (enough for the client to
-    render the error).
-  - A background sweep (e.g., `PeriodicTimer`) enforces time-based eviction.
+  A cache hit skips only scraping and meteo; analyses always re-run. This also
+  softens the no-reconnect policy: a refresh right after a completed scrape
+  restarts the job but short-circuits straight to analysis.
+- **Progress detail:** state transitions and counters (e.g., "order details
+  120/450") are pushed as fragments the moment they change — no polling delay.
+- **Failure:** any step error → `Failed` fragment with step name and message,
+  plus a retry form; retry starts a fresh job on the same socket.
+- **Disconnect:** socket close or ping timeout → `Cancellation` fired,
+  pipeline stops at the next checkpoint, job evicted. No resume.
+- **Concurrency:** one job per socket. A `start-analysis` for an email whose
+  job is already running on another socket is rejected with an "analysis
+  already in progress, try again later" fragment. Different emails run in
+  parallel; per-email files are isolated, shared meteo writes are locked.
+- **Keepalive:** server pings on an interval (e.g., 30 s); missed pongs count
+  as disconnect. Prevents proxy idle timeouts during long scrapes.
 
 ## Security Model
 
-- **HTTPS:** `UseHttpsRedirection` (and HSTS) are enabled unless the `DEBUG`
-  compile flag is set; local development runs plain HTTP.
-- **Poll-key binding:** every status/magic-link/report request must present the
-  poll key, and the request's IP and User-Agent must exactly match the values
-  captured when the job was created. Any mismatch → 404 (indistinguishable
-  from an unknown key; no information leak about live jobs).
-- **Honest limits:** IP + User-Agent matching is defense-in-depth, not a
-  security boundary — clients behind the same NAT share an IP and User-Agent
-  strings are trivially copied. The unguessable poll key carries the actual
-  protection, so it is generated with a cryptographically secure RNG and never
-  logged.
+- **HTTPS/WSS:** `UseHttpsRedirection` (and HSTS) are enabled unless the
+  `DEBUG` compile flag is set; local development runs plain HTTP/WS.
+- **No bearer tokens:** the job is identified by its connection. No job
+  identifier ever appears in a URL, log, or browser history. Hijacking a job
+  requires hijacking the TLS connection itself.
+- **Cross-Site WebSocket Hijacking:** the `/ws` upgrade handler validates the
+  `Origin` header against the server's own host and rejects mismatches.
+  Mandatory, because WebSocket handshakes are not subject to the same-origin
+  policy.
 - **No disk token cache in Release** (see above): a server restart drops all
   tokens and users must re-authenticate via magic link. Intended trade-off.
+- **Honest limits:** anyone who can connect and knows a driver's email can
+  trigger scraping and view that driver's report — the magic-link requirement
+  is the real gate for fresh scrapes, but a fresh-cache email is viewable
+  without authentication. Acceptable for local/trusted v1 usage; noted for
+  future hardening.
 
 ## Analysis Results & Report
 
@@ -161,57 +174,49 @@ type AnalysisReport = { Email: string; GeneratedAt: DateTimeOffset
 - Charts are embedded as Plotly figure JSON in
   `<script type="application/json">` blocks and initialized client-side with
   `Plotly.newPlot`. plotly.js and htmx come from CDN.
-- The finished report is delivered **in the final successful poll response**
-  (which also evicts the job). The report fragment contains everything needed
-  to render and to download.
+- The finished report is pushed as the final socket message; after delivery the
+  job ends (socket may stay open for a new `start-analysis`).
 - **Download:** a small JS helper assembles a standalone HTML file client-side
   from the already-delivered report (embedded figure JSON + CDN script tags)
-  and offers it as a Blob download. No server round-trip, so download keeps
-  working after the job entry is evicted.
+  and offers it as a Blob download. No server round-trip, so download works
+  regardless of job/socket state.
 - CSV and HTML file writing are removed along with the console entry points.
   The web path keeps results in memory only.
 
 ## HTTP Routes & Frontend
 
 ```
-GET  /                              full page: email form ("Make an analysis for me")
-POST /analyze              {email}  create job, generate poll key, capture IP+UA
-                                    → progress-panel fragment carrying the poll key
-GET  /jobs/{pollKey}/status         poll key + IP + UA must match, else 404. Fragment by state:
-                                      running  → step + counters, keeps polling (every 2 s)
-                                      awaiting → magic-link paste form (polling stops)
-                                      failed   → error + retry button
-                                      done     → full report fragment (job evicted after send)
-POST /magic-link  {email, url, pollKey}
-                                    stateless: attempt token exchange with url,
-                                    on success resume job → progress fragment
-GET  /health                        ok + python service reachability
+GET  /         full page: email form ("Make an analysis for me"), htmx + ws extension,
+               ws-connect to /ws
+GET  /ws       WebSocket upgrade (Origin validated), then socket protocol above
+GET  /health   ok + python service reachability
 ```
 
-- HTMX only; custom JavaScript limited to a plotly-init helper and the
-  client-side report download helper.
-- Polling uses `hx-trigger="every 2s"`; the server stops polling by returning a
-  fragment without the trigger once the state is terminal or awaiting input.
+- HTMX with the `ws` extension; custom JavaScript limited to a plotly-init
+  helper and the client-side report download helper.
+- All dynamic UI (progress, magic-link form, errors, report) arrives as
+  server-pushed fragments swapped by htmx — no client-side state machine.
 - Error surfacing: Python service down → analysis step fails with a clear
   message; Bolt API errors during scrape → Failed at ScrapingRides; invalid
-  magic link → stays in AwaitingMagicLink with an error note.
+  magic link → stays in AwaitingMagicLink with an error note pushed to client.
 
 ## Testing
 
 - **Pipeline state machine:** unit tests with a fake BoltClient and fake meteo
   source — states progress in order, stateless magic-link resume works, the
-  freshness check short-circuits.
-- **Job registry:** poll-key/IP/UA mismatch → 404; eviction after pull; eviction
-  after 1-minute timeout; awaiting-magic-link timeout.
+  freshness check short-circuits, cancellation stops at checkpoints.
+- **Socket layer:** `WebApplicationFactory` + `WebSocketClient` integration
+  tests — protocol messages produce expected fragments per state; Origin
+  mismatch rejected on upgrade; disconnect cancels the pipeline; same-email
+  conflict rejected.
 - **Analysis mapping:** result-type construction tested against canned Python
   service JSON responses (regression, mirror check, clustering).
-- **Web layer:** `WebApplicationFactory` integration tests — each route returns
-  the expected fragment for each job state; HTTPS redirect active in Release
-  configuration.
+- **Web layer:** HTTPS redirect active in Release configuration.
 
 ## Out of Scope (v1)
 
-- User authentication/sessions on the web page beyond the poll-key binding.
+- User authentication/sessions beyond socket ownership.
+- Reconnect/resume of jobs after socket loss.
 - Persisting job state across server restarts (in-memory registry only).
 - Managing the Python service lifecycle from F#.
 - Fully offline downloadable report (CDN version only).
