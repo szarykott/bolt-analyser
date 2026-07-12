@@ -56,7 +56,7 @@ module LowLevelApi =
         request.Headers.Authorization <- Headers.AuthenticationHeaderValue("Bearer", v)
         request
 
-    let private sendMagicLink (cfg: ApiConfig) (email: string) (ct: CancellationToken) : Task<Result<unit, ApiError>> =
+    let sendMagicLink (cfg: ApiConfig) (email: string) (ct: CancellationToken) : Task<Result<unit, ApiError>> =
         taskResult {
             do!
                 RequestBuilder.newRequest
@@ -126,7 +126,7 @@ module LowLevelApi =
         }
 
 
-    let private refreshTokens (cfg: ApiConfig) (ct: CancellationToken) : Task<Result<unit, ApiError>> =
+    let refreshTokens (cfg: ApiConfig) (ct: CancellationToken) : Task<Result<unit, ApiError>> =
         taskResult {
             do! cfg.Tokens.Lock.WaitAsync ct
 
@@ -144,27 +144,23 @@ module LowLevelApi =
                 cfg.Tokens.Lock.Release() |> ignore
         }
 
-    let initialize
-        (config: ApiConfig)
-        (email: string)
-        (trackingUrlCallback: unit -> string)
+    /// Stateless magic-link login: extract the token from a tracking URL,
+    /// exchange it for refresh + access tokens and store them on cfg.Tokens.
+    /// Callable at any time, regardless of whether we requested the email.
+    let loginWithMagicLinkUrl
+        (cfg: ApiConfig)
+        (trackingUrl: string)
         (ct: CancellationToken)
         : Task<Result<unit, ApiError>> =
-        if TokenStore.isEmpty config.Tokens then
-            taskResult {
-                do! sendMagicLink config email ct
-    
-                let! token =
-                    trackingUrlCallback ()
-                    |> MagicLink.getMagicLinkTokenFromTrackingUrl
-                    |> Result.mapError AuthError
-    
-                let! refreshToken = authenticateWithMagicLink config token ct
-                let! accessToken = getAccessToken config refreshToken ct
-                TokenStore.store config.Tokens accessToken refreshToken
-            }
-        else
-            refreshTokens config ct
+        taskResult {
+            let! token =
+                MagicLink.getMagicLinkTokenFromTrackingUrl trackingUrl
+                |> Result.mapError AuthError
+
+            let! refreshToken = authenticateWithMagicLink cfg token ct
+            let! accessToken = getAccessToken cfg refreshToken ct
+            TokenStore.store cfg.Tokens accessToken refreshToken
+        }
 
     let send<'T> cfg ct request: Task<Result<'T, ApiError>> =
         let attempt () = request |> withAuthentication cfg |> rawSend<SuccessResponse<'T>> cfg ct

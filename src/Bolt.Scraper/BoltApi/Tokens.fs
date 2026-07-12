@@ -23,31 +23,39 @@ type TokenStore = {
 
 module TokenStore =
     open Bolt.Infrastrucutre.storage.Storage
-    
+
+#if DEBUG
+    // Disk token cache is a convenience for local development ONLY.
+    // Release builds keep tokens in process memory (see spec, Security Model).
     let private storage = JsonStorage.create "tokenStore.json"
-    
+
     let private toFile user tokens : unit =
-            maybe {
-                let! allPrevious = storage.Read()
-                return Map.add user tokens allPrevious
-            }
-            |> Option.defaultValue (Map [(user, tokens)])
-            |> storage.Write
-    
-    let empty user = 
-        { User = user ; Current = {Access = AccessToken("", DateTimeOffset.UtcNow); Refresh = RefreshToken("") }; Lock = new SemaphoreSlim(1,1) }
-    
-    let isEmpty s =
-        let (RefreshToken v) = s.Current.Refresh
-        v = ""
-    
+        maybe {
+            let! allPrevious = storage.Read()
+            return Map.add user tokens allPrevious
+        }
+        |> Option.defaultValue (Map [ (user, tokens) ])
+        |> storage.Write
+
     let fromPrevious user =
         maybe {
             let! allPrevious = storage.Read()
             let! userPrevious = Map.tryFind user allPrevious
-            return { User = user ; Current = userPrevious; Lock = new SemaphoreSlim(1,1) }
+            return { User = user; Current = userPrevious; Lock = new SemaphoreSlim(1, 1) }
         }
-    
+#else
+    let private toFile (_user: string) (_tokens: Tokens) : unit = ()
+
+    let fromPrevious (_user: string) : TokenStore option = None
+#endif
+
+    let empty user =
+        { User = user ; Current = {Access = AccessToken("", DateTimeOffset.UtcNow); Refresh = RefreshToken("") }; Lock = new SemaphoreSlim(1,1) }
+
+    let isEmpty s =
+        let (RefreshToken v) = s.Current.Refresh
+        v = ""
+
     let store s accessToken refreshToken =
         s.Current <- { Access = accessToken; Refresh = refreshToken }
         toFile s.User s.Current

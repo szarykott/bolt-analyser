@@ -18,11 +18,7 @@ module BoltClient =
 
     let private getConfig (Bolt.Instance config) = config
     
-    let createBolt config email callback ct=
-        taskResult {
-            do! LowLevelApi.initialize config email callback ct
-            return Bolt.Instance config
-        }
+    let fromConfig config = Bolt.Instance config
     
     let mandatoryQueryParameters data =
         $"version={data.Version}&country={data.Country}&language={data.Language}&deviceType={data.DeviceType}&deviceId={data.DeviceUid}&device_os_version={data.DeviceOsVersion}"
