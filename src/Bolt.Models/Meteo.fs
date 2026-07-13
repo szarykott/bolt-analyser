@@ -42,4 +42,33 @@ module Weather =
 
     let getDataPoint weather time =
         let timestamp = roundToHourTimestamp time
-        weather.Data[timestamp] 
+        weather.Data[timestamp]
+
+    let hourRange (w: Weather) : (DateTimeOffset * DateTimeOffset) option =
+        if Map.isEmpty w.Data then None
+        else
+            let keys = w.Data |> Map.toSeq |> Seq.map fst
+            Some(
+                DateTimeOffset.FromUnixTimeSeconds(Seq.min keys),
+                DateTimeOffset.FromUnixTimeSeconds(Seq.max keys)
+            )
+
+    /// Union of both datasets; on hour collisions the right ("newer") side wins.
+    let merge (a: Weather) (b: Weather) : Weather =
+        { Center = a.Center
+          Data = (a.Data, b.Data) ||> Map.fold (fun acc k v -> Map.add k v acc) }
+
+    /// Exact hour if covered, otherwise the closest covered hour.
+    /// None only when the dataset is empty.
+    let getNearestDataPoint (w: Weather) (time: DateTimeOffset) : WeatherDataPoint option =
+        if Map.isEmpty w.Data then None
+        else
+            let ts = roundToHourTimestamp time
+            match Map.tryFind ts w.Data with
+            | Some p -> Some p
+            | None ->
+                w.Data
+                |> Map.toSeq
+                |> Seq.minBy (fun (k, _) -> abs (k - ts))
+                |> snd
+                |> Some
