@@ -15,6 +15,7 @@
     <ItemGroup>
         <Compile Include="Geo/DistrictAssignment.Tests.fs" />
         <Compile Include="PerRide1.Tests.fs" />
+        <Compile Include="PerRide2.Tests.fs" />
     </ItemGroup>
 
     <ItemGroup>

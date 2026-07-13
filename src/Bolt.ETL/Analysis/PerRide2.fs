@@ -10,7 +10,6 @@ module PerRide2 =
     open Bolt.ETL.Geo.DistrictAssignment
     open Bolt.ETL.Meteo.Model
     open Bolt.Infrastructure.Repository
-    open Bolt.Infrastrucutre.storage.Storage
     open Bolt.Models
     open Bolt.Models.Meteo
     
@@ -92,7 +91,7 @@ module PerRide2 =
         let meteo = (MeteoRepository.get ()).Value
         let districts = (DistrictsRepository.get ()).Value
     
-        let weatherProvider = Weather.getDataPoint meteo
+        let weatherProvider t = (Weather.getNearestDataPoint meteo t).Value
         let districtProvider = DistrictAssignment.assignCoordinatesToDistrict districts
     
         let finishedRide (ride: Ride) : FinishedRide option =
@@ -108,33 +107,6 @@ module PerRide2 =
     
         { Rows = data }
     
-    let saveRidesDataSourceToCsv (data: RidesDataSource) =
-        let headers = [|
-            "price_pln"
-            "distance_km"
-            "is_rush_hour"
-            "is_weekend"
-            "pickup_district"
-            "rain"
-            "snow"
-            "temperature_bucket"
-        |]
-        
-        let data =
-            data.Rows
-            |> Array.map(fun r -> [|
-                r.PricePln.ToString("F2")
-                r.Distance.ToString()
-                r.IsRushHour.ToString()
-                r.IsWeekend.ToString()
-                r.PickupDistrict
-                r.Rain.ToString()
-                r.Snow.ToString()
-                r.Temperature.ToString()
-            |])
-    
-        CsvStorage.write "ridesDataSource2.csv" { Headers = headers; Rows = data }
-
     // JSON rows for the analytics service, keyed by the CSV header names.
     // Units of measure / decimal unwrapped before boxing so values serialize
     // as plain JSON numbers; bools stay bools (service keeps false <> 0.0).
@@ -152,46 +124,72 @@ module PerRide2 =
                 "temperature_bucket", box (r.Temperature.ToString())
             ])
 
-    let private formatFloat (value: float option) =
-        value
-        |> Option.map (fun v -> v.ToString(CultureInfo.InvariantCulture))
-        |> Option.defaultValue ""
+    let private fmtOpt (v: float option) =
+        v
+        |> Option.map (fun x -> x.ToString("F4", CultureInfo.InvariantCulture))
+        |> Option.defaultValue "–"
 
-    let runRemoteRegression (data: RidesDataSource) =
-        let response =
+    let coefficientsTable (response: OlsResponse) : ResultTable =
+        { Title = "OLS coefficients (target: price_pln)"
+          Headers = [ "feature"; "coef"; "std err"; "t"; "p-value"; "ci low"; "ci high" ]
+          Rows =
+            response.Coefficients
+            |> Array.map (fun c ->
+                [ c.Name; fmtOpt c.Coef; fmtOpt c.StdErr; fmtOpt c.TValue
+                  fmtOpt c.PValue; fmtOpt c.CiLow; fmtOpt c.CiHigh ])
+            |> List.ofArray }
+
+    let modelStatsTable (response: OlsResponse) : ResultTable =
+        { Title = "Model statistics"
+          Headers = [ "statistic"; "value" ]
+          Rows =
+            [ [ "observations"; string response.NObservations ]
+              [ "R²"; fmtOpt response.RSquared ]
+              [ "adjusted R²"; fmtOpt response.AdjRSquared ]
+              [ "F statistic"; fmtOpt response.FStatistic ]
+              [ "F p-value"; fmtOpt response.FPvalue ] ] }
+
+    let vifTable (response: MirrorCheckResponse) : ResultTable =
+        { Title = "Variance inflation factors"
+          Headers = [ "feature"; "VIF" ]
+          Rows =
+            response.Vif
+            |> Array.map (fun v -> [ v.Feature; fmtOpt v.Vif ])
+            |> List.ofArray }
+
+    let groupMeansTable (response: MirrorCheckResponse) : ResultTable option =
+        response.GroupMeans
+        |> Option.map (fun groupMeans ->
+            { Title = "Mean distance by district"
+              Headers = [ "district"; "mean distance [km]" ]
+              Rows =
+                groupMeans
+                |> Array.map (fun g -> [ g.Group; fmtOpt g.Mean ])
+                |> List.ofArray })
+
+    let buildSection (source: RidesDataSource) : AnalysisSection =
+        let ols =
             AnalyticsClient.olsRegression {
-                Rows = toAnalyticsRows data
+                Rows = toAnalyticsRows source
                 Target = "price_pln"
                 DropColumns = [||]
                 CategoricalColumns = None
                 Standardize = true
             }
 
-        JsonStorage.write "perRide2.olsRegression.json" response
-
-        let rows =
-            response.Coefficients
-            |> Array.map (fun c -> [|
-                c.Name
-                formatFloat c.Coef
-                formatFloat c.StdErr
-                formatFloat c.TValue
-                formatFloat c.PValue
-                formatFloat c.CiLow
-                formatFloat c.CiHigh
-            |])
-
-        CsvStorage.write "perRide2.olsCoefficients.csv" {
-            Headers = [| "name"; "coef"; "std_err"; "t_value"; "p_value"; "ci_low"; "ci_high" |]
-            Rows = rows
-        }
-
-    let runRemoteMirrorCheck (data: RidesDataSource) =
-        let response =
+        let mirror =
             AnalyticsClient.mirrorCheck {
-                Rows = toAnalyticsRows data
+                Rows = toAnalyticsRows source
                 TargetColumns = [| "price_pln" |]
                 GroupMeans = Some { By = "pickup_district"; Value = "distance_km" }
             }
 
-        JsonStorage.write "perRide2.mirrorCheck.json" response
+        { Id = "price-regression"
+          Title = "Price regression"
+          Description = "OLS regression of ride price against distance, time and weather, with multicollinearity diagnostics."
+          Charts = []
+          Tables =
+            [ yield coefficientsTable ols
+              yield modelStatsTable ols
+              yield vifTable mirror
+              yield! groupMeansTable mirror |> Option.toList ] }
