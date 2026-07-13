@@ -41,6 +41,16 @@ let main args =
     app.UseHttpsRedirection() |> ignore
 #endif
 
+    app.UseStaticFiles() |> ignore
+
+    app.MapGet(
+        "/",
+        Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
+            ctx.Response.ContentType <- "text/html; charset=utf-8"
+            ctx.Response.WriteAsync(Views.indexPage ()))
+    )
+    |> ignore
+
     app.MapGet(
         "/health",
         Func<IResult>(fun () ->
