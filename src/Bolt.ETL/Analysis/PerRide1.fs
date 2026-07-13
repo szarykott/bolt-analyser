@@ -3,13 +3,13 @@ namespace Bolt.ETL.Analysis
 module PerRide1 = 
 
     open System
+    open System.Globalization
     open Bolt.ETL
     open Bolt.ETL.Geo
     open Bolt.ETL.Geo.DistrictAssignment
     open Bolt.ETL.Meteo.Model
     open Bolt.ETL.Shared.Model
     open Bolt.Infrastructure.Repository
-    open Bolt.Infrastrucutre.storage.Storage
     open Bolt.Models
     open Bolt.Models.Meteo
     
@@ -56,7 +56,7 @@ module PerRide1 =
         let meteo = (MeteoRepository.get ()).Value
         let districts = (DistrictsRepository.get ()).Value
     
-        let weatherProvider = Weather.getDataPoint meteo
+        let weatherProvider t = (Weather.getNearestDataPoint meteo t).Value
         let districtProvider = DistrictAssignment.assignCoordinatesToDistrict districts
     
         let finishedRide (ride: Ride) : FinishedRide option =
@@ -72,34 +72,35 @@ module PerRide1 =
     
         { Rows = data }
     
-    let saveRidesDataSourceToCsv (data: RidesDataSource) =
-        let headers = [|
-            "price_pln"
-            "price_per_km"
-            "distance_km"
-            "part_of_day"
-            "day_of_week"
-            "pickup_district"
-            "rain"
-            "snow"
-            "temperature_bucket"
-            "payment_type"
-        |]
-        
-        let data =
-            data.Rows
-            |> Array.map(fun r -> [|
-                r.PricePln.ToString("F2")
-                r.PricePerKm.ToString("F2")
-                r.Distance.ToString()
-                r.PartOfDay.ToString()
-                r.DayOfWeek.ToString()
-                r.PickupDistrict.Value.ToString()
-                r.Rain.ToString()
-                r.Snow.ToString()
-                r.Temperature.ToString()
-                r.PaymentType
-            |])
-    
-        CsvStorage.write "ridesDataSource.csv" { Headers = headers; Rows = data }
-    
+    let private fmt (v: float) = v.ToString("F2", CultureInfo.InvariantCulture)
+
+    let breakdownTable (title: string) (key: RideRow -> string) (rows: RideRow array) : ResultTable =
+        let dataRows =
+            rows
+            |> Array.groupBy key
+            |> Array.sortByDescending (fun (_, rs) -> rs.Length)
+            |> Array.map (fun (k, rs) ->
+                [ k
+                  string rs.Length
+                  fmt (rs |> Array.averageBy (fun r -> float r.PricePln))
+                  fmt (rs |> Array.averageBy (fun r -> float r.PricePerKm)) ])
+            |> List.ofArray
+
+        { Title = title
+          Headers = [ "group"; "rides"; "avg price [PLN]"; "avg [PLN/km]" ]
+          Rows = dataRows }
+
+    let private weatherLabel (r: RideRow) =
+        let precipitation = if r.Snow then "snow" elif r.Rain then "rain" else "dry"
+        $"{r.Temperature}/{precipitation}"
+
+    let buildSection (source: RidesDataSource) : AnalysisSection =
+        { Id = "ride-stats"
+          Title = "Ride statistics"
+          Description = "Ride counts and average earnings broken down by pickup district, time and weather."
+          Charts = []
+          Tables =
+            [ breakdownTable "By pickup district" (fun r -> r.PickupDistrict.Value) source.Rows
+              breakdownTable "By part of day" (fun r -> string r.PartOfDay) source.Rows
+              breakdownTable "By day of week" (fun r -> string r.DayOfWeek) source.Rows
+              breakdownTable "By weather" weatherLabel source.Rows ] }
