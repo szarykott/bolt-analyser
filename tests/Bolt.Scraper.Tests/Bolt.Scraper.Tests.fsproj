@@ -16,6 +16,7 @@
         <Compile Include="Weather.Tests.fs" />
         <Compile Include="MeteoCoverage.Tests.fs" />
         <Compile Include="MagicLink.Tests.fs" />
+        <Compile Include="Tokens.Tests.fs" />
     </ItemGroup>
 
     <ItemGroup>
