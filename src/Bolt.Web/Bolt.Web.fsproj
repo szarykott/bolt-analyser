@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bolt.Infrastructure\Bolt.Infrastructure.fsproj" />
+    <ProjectReference Include="..\Bolt.Models\Bolt.Models.fsproj" />
+    <ProjectReference Include="..\Bolt.Scraper\Bolt.Scraper.fsproj" />
+    <ProjectReference Include="..\Bolt.ETL\Bolt.ETL.fsproj" />
+  </ItemGroup>
+
+</Project>
