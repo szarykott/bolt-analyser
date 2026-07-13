@@ -11,6 +11,7 @@ Four FIXME comments mark known problems:
 2. `src/Bolt.Scraper/ScrapePipeline.fs:133` — `ensureMeteoCoverage` computes the weather-archive cap (`now − 5 days`) but discards it; analysis cannot exclude rides that have no weather data.
 3. `src/Bolt.Web/Jobs/JobRunner.fs:32` — a magic-link URL is accepted as the first websocket message; only an e-mail address should start a job.
 4. `src/Bolt.Web/Jobs/JobRunner.fs:59` — the scrape progress callback blocks with `GetAwaiter().GetResult()`.
+5. `src/Bolt.ETL/AnalysisPipeline.fs:10` — analysis should be async top to bottom; today `AnalyticsClient` blocks synchronously on HTTP tasks and the pipeline is wrapped in `Task.Run`.
 
 Product constraint driving item 1: **user data must never be persisted in production**. Scraping anew on every visit is the intended workflow. Disk persistence (and the 14-day freshness cache built on it) is a debugging convenience only, gated behind `#if DEBUG` — the same pattern `TokenStore.fromPrevious` already uses.
 
@@ -47,7 +48,7 @@ It lives in **Bolt.Models** because Bolt.ETL does not reference Bolt.Scraper; Mo
 
 ### 3. Analysis (`Bolt.ETL`)
 
-- `AnalysisPipeline.run (data: ScrapedData) (weatherCap: DateTimeOffset) : Result<AnalysisReport, string>` — no repository reads for user data.
+- `AnalysisPipeline.run (data: ScrapedData) (weatherCap: DateTimeOffset) : Task<Result<AnalysisReport, string>>` — no repository reads for user data, async top to bottom (section 7).
 - Weather-cap filtering: rides with `Created <= weatherCap` feed **PerRide1** and **PerRide2** (the meteo-dependent sections). Their `PastOrderDetail` records are matched by order identity (the same order handle/id used during scraping, where `previous[i]` and `details[i]` come from the same handle). **RideClustering** receives the full ride set (it has no meteo dependency).
 - `RideCount` and `DateRange` in the report are computed from the full set, so totals stay honest.
 - `prepareRideAnalysisSource` in all three analysis modules takes `(previousRides: PreviousOrder[], pastOrders: PastOrderDetail[])` instead of `email`. Meteo and Districts are still loaded from their repositories inside (shared, non-user data).
@@ -100,6 +101,26 @@ New edge case: if every ride is newer than the weather cap, the weather sections
 - **Scraper.Tests**: `ensureMeteoCoverage` takes a rides argument and returns the cap. `MeteoCoverage.missingRanges` tests are untouched.
 - **ETL.Tests**: cap filtering — a ride after the cap is excluded from PerRide sections but included in clustering and report totals.
 - Existing `ScrapeMetadata` tests stay; the freshness cache is still a real DEBUG feature.
+
+### 7. Async analysis top to bottom (`Bolt.ETL`)
+
+The blocking chain: `AnalyticsClient.post` and `isHealthy` block on HTTP with
+`GetAwaiter().GetResult()`; `PerRide2` calls `olsRegression` + `mirrorCheck` and
+`RideClustering` calls `stDbscan` through it; `AnalysisPipeline.run` is synchronous and
+`Pipeline.realDeps` wraps it in `Task.Run`. `PerRide1` is pure CPU (no analytics calls).
+
+- `AnalyticsClient`: `post` becomes a `task { }`; `stDbscan`, `olsRegression`, `mirrorCheck`
+  return `Task<'resp>`, `isHealthy` returns `Task<bool>`. No blocking anywhere.
+- `buildSection` in all three analysis modules: `RidesDataSource -> Task<AnalysisSection>`.
+  `PerRide1` gets the same signature despite being pure — a uniform section list is worth the
+  trivial lift.
+- `AnalysisPipeline.run` returns `Task<Result<AnalysisReport, string>>` (task CE with the
+  try/with inside). Sections still run **sequentially**: deterministic order, no burst load on
+  the analytics service. Running them in parallel is a future option, out of scope here.
+- `Pipeline.realDeps`: the `Task.Run` wrapper is deleted; `RunAnalysis` binds the task
+  directly. The "wrap in Task.Run" doc comment dies with it.
+- `Program.fs` health endpoint awaits `isHealthy`.
+- Tests: ETL tests await `buildSection`/`run`; the JobRunner fakes are already Task-shaped.
 
 ## Out of scope
 
