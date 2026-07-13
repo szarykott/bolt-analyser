@@ -13,6 +13,7 @@
     <Compile Include="Analytics\AnalyticsContracts.fs" />
     <Compile Include="Analytics\AnalyticsClient.fs" />
     <Compile Include="Plotting\ClusterMap.fs" />
+    <Compile Include="Analysis\Report.fs" />
     <Compile Include="Analysis\PerRide1.fs" />
     <Compile Include="Analysis\PerRide2.fs" />
     <Compile Include="Analysis\RideClustering.fs" />
