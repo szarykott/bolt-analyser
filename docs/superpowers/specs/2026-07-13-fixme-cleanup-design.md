@@ -41,10 +41,10 @@ It lives in **Bolt.Models** because Bolt.ETL does not reference Bolt.Scraper; Mo
 - `ensureMeteoCoverage` changes signature to:
 
   ```fsharp
-  (rides: PreviousOrder[]) -> CancellationToken -> Task<Result<DateTimeOffset, string>>
+  (rideMin: DateTimeOffset, rideMax: DateTimeOffset) -> CancellationToken -> Task<Result<DateTimeOffset, string>>
   ```
 
-  Rides arrive as an argument (no repository read). On success it returns the capped ride maximum: `min (max rideDates) (now − 5 days)`. The meteo file itself stays on disk — it is shared Kraków weather, not user data. The empty-rides check moves to the job runner (section 4).
+  It takes the ride date range, not rides — loosely coupled, no knowledge of order types, same tuple shape `MeteoCoverage.missingRanges` already uses. No repository read. On success it returns the capped maximum: `min rideMax (now − 5 days)`. The caller (`Pipeline.realDeps`) computes min/max from the scraped orders. The meteo file itself stays on disk — it is shared Kraków weather, not user data. The empty-rides check moves to the job runner (section 4), so this function can assume a valid range.
 
 ### 3. Analysis (`Bolt.ETL`)
 
@@ -86,7 +86,7 @@ Progress bridging becomes `let progress detail = notify (ScrapingRides detail)` 
 `WebSockets.fs` (FIXME 3): a `MagicLink` message with no running job sends
 `Views.errorFragment email "authentication" "Start the analysis with your e-mail address first."` and does **not** start a job. `startJob` loses its `initialUrl` parameter. `ClientMessage` keeps its shape — the e-mail field is still needed for the error fragment.
 
-`Pipeline.realDeps`: `LoadCached` is `#if DEBUG` a freshness check plus a load of all five repositories (if any is missing, return `None`), `#else` `fun _ -> None`. `freshnessWindow` becomes a DEBUG-only detail.
+`Pipeline.realDeps`: `LoadCached` is `#if DEBUG` a freshness check plus a load of all five repositories (if any is missing, return `None`), `#else` `fun _ -> None`. `freshnessWindow` becomes a DEBUG-only detail. `EnsureMeteo` adapts the opaque data to the date-range API: it computes min/max of `PreviousOrders` dates and calls `ensureMeteoCoverage (rideMin, rideMax)` — the job runner never sees order types, and the meteo function never sees orders.
 
 ### 5. Error handling
 
@@ -98,7 +98,7 @@ New edge case: if every ride is newer than the weather cap, the weather sections
 
 - **JobRunner.Tests**: rewrite fake deps to the new record shape. New cases: magic-link-as-first-message flow no longer exists; a `LoadCached` hit skips scraping; zero rides fails at the scraping step; the cap threads from `EnsureMeteo` into `RunAnalysis`.
 - **WebSocket.Tests**: magic-link first message yields an error fragment and starts no job.
-- **Scraper.Tests**: `ensureMeteoCoverage` takes a rides argument and returns the cap. `MeteoCoverage.missingRanges` tests are untouched.
+- **Scraper.Tests**: `ensureMeteoCoverage` takes a `(rideMin, rideMax)` range and returns the cap. `MeteoCoverage.missingRanges` tests are untouched.
 - **ETL.Tests**: cap filtering — a ride after the cap is excluded from PerRide sections but included in clustering and report totals.
 - Existing `ScrapeMetadata` tests stay; the freshness cache is still a real DEBUG feature.
 
