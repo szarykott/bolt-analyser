@@ -13,6 +13,7 @@
     <Compile Include="BoltApi\BoltApi.fs" />
     <Compile Include="Krakow\Districts.fs" />
     <Compile Include="Meteo\OpenMeteo.fs" />
+    <Compile Include="ScrapePipeline.fs" />
   </ItemGroup>
 
   <ItemGroup>
