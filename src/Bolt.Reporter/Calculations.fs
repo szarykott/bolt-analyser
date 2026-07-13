@@ -91,13 +91,13 @@ let averageRideDistance (rides: FinishedRide seq) : Distance =
     let arr = rides |> Array.ofSeq
 
     if arr.Length = 0 then
-        Distance 0m
+        Distance 0.0
     else
-        Distance((arr |> Array.sumBy (fun r -> r.Route.RideDistance.Value)) / decimal arr.Length)
+        Distance((arr |> Array.sumBy (fun r -> r.Route.RideDistance.Value)) / float arr.Length)
 
 let earnedPerKm (rides: FinishedRide seq) : decimal =
     let dist = (totalDistance rides).Value
-    if dist = 0m then 0m else (totalEarned rides).Value / dist
+    if dist = 0.0 then 0m else (totalEarned rides).Value / decimal dist
 
 let totalRideDuration (rides: FinishedRide seq) : TimeSpan = rides |> Seq.map rideDuration |> sumDurations
 
@@ -199,7 +199,7 @@ let cashShare (rides: FinishedRide seq) : decimal =
     else
         let cash =
             rides
-            |> Seq.filter (fun r -> r.Payment.PaymentMetadata.PaymentType = PaymentType.Cash)
+            |> Seq.filter (fun r -> r.Payment.PaymentMetadata.PaymentType = "cash")
             |> Seq.sumBy (fun r -> (rideNetEarned r).Value)
 
         cash / total
