@@ -1,0 +1,92 @@
+module Bolt.Web.Tests.WebSocketTests
+
+open System
+open System.Net.WebSockets
+open System.Text
+open System.Threading
+open System.Threading.Tasks
+open Microsoft.AspNetCore.Hosting
+open Microsoft.AspNetCore.Mvc.Testing
+open Microsoft.Extensions.DependencyInjection
+open Xunit
+open Bolt.ETL.Analysis
+open Bolt.Scraper.ScrapePipeline
+open Bolt.Web.Jobs
+
+let private report: AnalysisReport = {
+    Email = "a@b.pl"
+    GeneratedAt = DateTimeOffset.UtcNow
+    RideCount = 3
+    DateRange = (DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+    Sections = []
+}
+
+// Fake deps: fresh cache, analysis returns instantly. CreateSession never
+// talks to the network because every other function is faked.
+let private fakeDeps: PipelineDeps<ScrapeSession> = {
+    IsFresh = fun _ -> true
+    CreateSession = ScrapeSession.create
+    HasTokens = fun _ -> true
+    RefreshTokens = fun _ _ -> Task.FromResult(Ok())
+    RequestMagicLink = fun _ _ -> Task.FromResult(Ok())
+    AuthenticateWithUrl = fun _ _ _ -> Task.FromResult(Ok())
+    ScrapeRides = fun _ _ _ -> Task.FromResult(Ok())
+    EnsureMeteo = fun _ _ -> Task.FromResult(Ok())
+    RunAnalysis = fun _ -> Task.FromResult(Ok report)
+}
+
+let private makeFactory () =
+    (new WebApplicationFactory<Bolt.Web.Program.BoltWebMarker>())
+        .WithWebHostBuilder(fun b ->
+            b.UseSetting("SkipStartupDistricts", "true") |> ignore
+            b.ConfigureServices(fun services ->
+                services.AddSingleton<PipelineDeps<ScrapeSession>>(fakeDeps) |> ignore)
+            |> ignore)
+
+let private receiveText (socket: WebSocket) =
+    let buffer = Array.zeroCreate 1_000_000
+    let sb = StringBuilder()
+    let mutable finished = false
+    while not finished do
+        let result =
+            socket.ReceiveAsync(ArraySegment buffer, CancellationToken.None).GetAwaiter().GetResult()
+        sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count)) |> ignore
+        finished <- result.EndOfMessage
+    sb.ToString()
+
+let private sendText (socket: WebSocket) (text: string) =
+    let bytes = Encoding.UTF8.GetBytes text
+    socket.SendAsync(ArraySegment bytes, WebSocketMessageType.Text, true, CancellationToken.None)
+        .GetAwaiter().GetResult()
+
+[<Fact>]
+let ``ws upgrade without matching origin is rejected`` () =
+    use factory = makeFactory ()
+    let client = factory.Server.CreateWebSocketClient()
+    client.ConfigureRequest <- fun req -> req.Headers.Origin <- "https://evil.example.com"
+    let ex =
+        Record.Exception(fun () ->
+            client.ConnectAsync(Uri(factory.Server.BaseAddress, "/ws"), CancellationToken.None)
+                .GetAwaiter().GetResult()
+            |> ignore)
+    Assert.NotNull ex
+
+[<Fact>]
+let ``start-analysis on fresh cache streams progress then report`` () =
+    use factory = makeFactory ()
+    let client = factory.Server.CreateWebSocketClient()
+    client.ConfigureRequest <- fun req -> req.Headers.Origin <- string factory.Server.BaseAddress
+    use socket =
+        client.ConnectAsync(Uri(factory.Server.BaseAddress, "/ws"), CancellationToken.None)
+            .GetAwaiter().GetResult()
+
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+
+    let mutable last = ""
+    let mutable rounds = 0
+    while not (last.Contains "report-content") && rounds < 10 do
+        last <- receiveText socket
+        rounds <- rounds + 1
+
+    Assert.Contains("report-content", last)
+    Assert.Contains("a@b.pl", last)

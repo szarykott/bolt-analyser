@@ -8,6 +8,8 @@
     <Compile Include="Jobs/JobState.fs" />
     <Compile Include="Jobs/JobRunner.fs" />
     <Compile Include="Views.fs" />
+    <Compile Include="Pipeline.fs" />
+    <Compile Include="WebSockets.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

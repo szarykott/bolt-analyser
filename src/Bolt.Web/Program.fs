@@ -6,9 +6,12 @@ open Bolt.ETL.Analytics
 open Bolt.Infrastructure.Repository
 open Bolt.Infrastrucutre.storage.Constants
 open Bolt.Scraper.Krakow.Districts
+open Bolt.Scraper.ScrapePipeline
+open Bolt.Web.Jobs
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.DependencyInjection
 
 /// Marker for WebApplicationFactory in integration tests.
 type BoltWebMarker() = class end
@@ -26,6 +29,7 @@ let ensureDistricts () =
 [<EntryPoint>]
 let main args =
     let builder = WebApplication.CreateBuilder(args)
+    builder.Services.AddSingleton<PipelineDeps<ScrapeSession>>(Pipeline.realDeps) |> ignore
     let app = builder.Build()
 
     Paths.ensureStorageExists () |> ignore
@@ -42,6 +46,16 @@ let main args =
 #endif
 
     app.UseStaticFiles() |> ignore
+
+    app.UseWebSockets(WebSocketOptions(KeepAliveInterval = TimeSpan.FromSeconds 30.0)) |> ignore
+
+    app.Map(
+        "/ws",
+        Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
+            let deps = ctx.RequestServices.GetRequiredService<PipelineDeps<ScrapeSession>>()
+            WebSockets.handle deps ctx)
+    )
+    |> ignore
 
     app.MapGet(
         "/",

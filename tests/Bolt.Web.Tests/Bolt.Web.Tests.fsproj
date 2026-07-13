@@ -16,6 +16,7 @@
     <ItemGroup>
         <Compile Include="Views.Tests.fs" />
         <Compile Include="JobRunner.Tests.fs" />
+        <Compile Include="WebSocket.Tests.fs" />
         <Compile Include="Health.Tests.fs" />
     </ItemGroup>
 
