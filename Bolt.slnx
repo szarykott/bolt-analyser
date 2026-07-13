@@ -8,10 +8,14 @@
     <Project Path="src/Bolt.Reporter/Bolt.Reporter.fsproj" />
     <Project Path="src/Bolt.ETL/Bolt.ETL.fsproj" />
     <Project Path="src\Bolt.Scraper\Bolt.Scraper.fsproj" />
+    <Project Path="src/Bolt.Web/Bolt.Web.fsproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bolt.App.Tests/Bolt.App.Tests.fsproj" />
     <Project Path="tests/Bolt.Reporter.Tests/Bolt.Reporter.Tests.fsproj" />
     <Project Path="tests/Bolt.ETL.Tests/Bolt.ETL.Tests.fsproj" />
+    <Project Path="tests/Bolt.Infrastructure.Tests/Bolt.Infrastructure.Tests.fsproj" />
+    <Project Path="tests/Bolt.Scraper.Tests/Bolt.Scraper.Tests.fsproj" />
+    <Project Path="tests/Bolt.Web.Tests/Bolt.Web.Tests.fsproj" />
   </Folder>
 </Solution>
