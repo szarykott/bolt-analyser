@@ -6,9 +6,10 @@ module RideClustering =
     open System.Globalization
     open Bolt.ETL
     open Bolt.ETL.Analytics
+    open Bolt.ETL.Plotting
     open Bolt.Infrastructure.Repository
-    open Bolt.Infrastrucutre.storage.Storage
     open Bolt.Models
+    open Plotly.NET
 
     type RideRow = {
         Latitude: float
@@ -46,23 +47,6 @@ module RideClustering =
 
         { Rows = data }
 
-    let saveRidesDataSourceToCsv (data: RidesDataSource) =
-        let headers = [|
-            "latitude"
-            "longitude"
-            "time"
-        |]
-
-        let data =
-            data.Rows
-            |> Array.map(fun r -> [|
-                r.Latitude.ToString("F5", CultureInfo.InvariantCulture)
-                r.Longitude.ToString("F5", CultureInfo.InvariantCulture)
-                r.Time.ToString("HH:mm", CultureInfo.InvariantCulture)
-            |])
-
-        CsvStorage.write "rideClusteringDataSource.csv" { Headers = headers; Rows = data }
-
     let toStPoints (data: RidesDataSource) : StPoint array =
         data.Rows
         |> Array.map (fun r -> {
@@ -71,8 +55,22 @@ module RideClustering =
             Hour = float r.Time.Hour + float r.Time.Minute / 60.0
         })
 
-    let runRemoteClustering (data: RidesDataSource) : StDbscanResponse =
-        let points = toStPoints data
+    let clusterTable (response: StDbscanResponse) : ResultTable =
+        { Title = $"Clusters (points: {response.NPoints}, noise: {response.NNoise})"
+          Headers = [ "cluster"; "size"; "centroid lat"; "centroid lon"; "mean hour" ]
+          Rows =
+            response.Clusters
+            |> Array.sortByDescending _.Size
+            |> Array.map (fun c ->
+                [ string c.Id
+                  string c.Size
+                  c.CentroidLatitude.ToString("F5", CultureInfo.InvariantCulture)
+                  c.CentroidLongitude.ToString("F5", CultureInfo.InvariantCulture)
+                  c.MeanHour.ToString("F2", CultureInfo.InvariantCulture) ])
+            |> List.ofArray }
+
+    let buildSection (source: RidesDataSource) : AnalysisSection =
+        let points = toStPoints source
 
         let response =
             AnalyticsClient.stDbscan {
@@ -82,35 +80,14 @@ module RideClustering =
                 MinSamples = 5
             }
 
-        JsonStorage.write "rideClustering.result.json" response
+        let chart =
+            [ ClusterMap.ridePointsLayer points response
+              ClusterMap.centroidLayer response ]
+            |> Chart.combine
+            |> ClusterMap.withMapStyle points
 
-        let clusteredRows =
-            Array.zip data.Rows response.Labels
-            |> Array.map (fun (r, label) -> [|
-                r.Latitude.ToString("F5", CultureInfo.InvariantCulture)
-                r.Longitude.ToString("F5", CultureInfo.InvariantCulture)
-                r.Time.ToString("HH:mm", CultureInfo.InvariantCulture)
-                string label
-            |])
-
-        CsvStorage.write "rideClusteringDataSource-clustered.csv" {
-            Headers = [| "latitude"; "longitude"; "time"; "cluster" |]
-            Rows = clusteredRows
-        }
-
-        let clusterRows =
-            response.Clusters
-            |> Array.map (fun c -> [|
-                string c.Id
-                string c.Size
-                c.CentroidLatitude.ToString(CultureInfo.InvariantCulture)
-                c.CentroidLongitude.ToString(CultureInfo.InvariantCulture)
-                c.MeanHour.ToString(CultureInfo.InvariantCulture)
-            |])
-
-        CsvStorage.write "rideClusters.csv" {
-            Headers = [| "cluster"; "size"; "centroid_latitude"; "centroid_longitude"; "mean_hour" |]
-            Rows = clusterRows
-        }
-
-        response
+        { Id = "ride-clusters"
+          Title = "Pickup clusters"
+          Description = "Spatio-temporal clusters (ST-DBSCAN) of ride pickup locations."
+          Charts = [ { Title = "Pickup cluster map"; PlotlyFigureJson = GenericChart.toFigureJson chart } ]
+          Tables = [ clusterTable response ] }

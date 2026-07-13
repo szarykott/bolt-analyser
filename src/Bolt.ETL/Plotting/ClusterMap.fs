@@ -3,13 +3,12 @@ namespace Bolt.ETL.Plotting
 // Composable map layers for clustering results. Layers depend only on the
 // analytics contracts (StPoint / StDbscanResponse), so any analysis speaking
 // that contract can be plotted. Compose with Chart.combine, style with
-// withMapStyle, persist with saveHtml.
+// withMapStyle.
 
 module ClusterMap =
 
     open System
     open Bolt.ETL.Analytics
-    open Bolt.Infrastrucutre.storage.Constants.Paths
     open Plotly.NET
     open Plotly.NET.LayoutObjects
 
@@ -109,7 +108,3 @@ module ClusterMap =
         )
         |> Chart.withMarginSize (Left = 0, Right = 0, Top = 0, Bottom = 0)
         |> Chart.withSize (1200.0, 800.0)
-
-    let saveHtml (name: string) (chart: GenericChart) =
-        ensureStorageExists () |> ignore
-        chart |> Chart.saveHtml (getQualifiedStorageLocation (name + ".html"))
