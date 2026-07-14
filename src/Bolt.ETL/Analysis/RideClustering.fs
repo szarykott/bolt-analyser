@@ -4,6 +4,7 @@ module RideClustering =
 
     open System
     open System.Globalization
+    open System.Threading.Tasks
     open Bolt.ETL
     open Bolt.ETL.Analytics
     open Bolt.ETL.Plotting
@@ -69,25 +70,28 @@ module RideClustering =
                   c.MeanHour.ToString("F2", CultureInfo.InvariantCulture) ])
             |> List.ofArray }
 
-    let buildSection (source: RidesDataSource) : AnalysisSection =
-        let points = toStPoints source
+    let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
+        task {
+            let points = toStPoints source
 
-        let response =
-            AnalyticsClient.stDbscan {
-                Points = points
-                EpsKm = 0.7
-                EpsHours = 1
-                MinSamples = 5
-            }
+            let! response =
+                AnalyticsClient.stDbscan {
+                    Points = points
+                    EpsKm = 0.7
+                    EpsHours = 1
+                    MinSamples = 5
+                }
 
-        let chart =
-            [ ClusterMap.ridePointsLayer points response
-              ClusterMap.centroidLayer response ]
-            |> Chart.combine
-            |> ClusterMap.withMapStyle points
+            let chart =
+                [ ClusterMap.ridePointsLayer points response
+                  ClusterMap.centroidLayer response ]
+                |> Chart.combine
+                |> ClusterMap.withMapStyle points
 
-        { Id = "ride-clusters"
-          Title = "Pickup clusters"
-          Description = "Spatio-temporal clusters (ST-DBSCAN) of ride pickup locations."
-          Charts = [ { Title = "Pickup cluster map"; PlotlyFigureJson = GenericChart.toFigureJson chart } ]
-          Tables = [ clusterTable response ] }
+            return
+                { Id = "ride-clusters"
+                  Title = "Pickup clusters"
+                  Description = "Spatio-temporal clusters (ST-DBSCAN) of ride pickup locations."
+                  Charts = [ { Title = "Pickup cluster map"; PlotlyFigureJson = GenericChart.toFigureJson chart } ]
+                  Tables = [ clusterTable response ] }
+        }

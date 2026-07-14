@@ -32,7 +32,7 @@ let ``breakdownTable groups, counts and sorts descending`` () =
 
 [<Fact>]
 let ``buildSection produces four tables and no charts`` () =
-    let section = PerRide1.buildSection { Rows = [| row "A" 10m 2.0 |] }
+    let section = (PerRide1.buildSection { Rows = [| row "A" 10m 2.0 |] }).GetAwaiter().GetResult()
     Assert.Equal("ride-stats", section.Id)
     Assert.Empty section.Charts
     Assert.Equal(4, section.Tables.Length)

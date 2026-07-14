@@ -4,6 +4,7 @@ module PerRide1 =
 
     open System
     open System.Globalization
+    open System.Threading.Tasks
     open Bolt.ETL
     open Bolt.ETL.Geo
     open Bolt.ETL.Geo.DistrictAssignment
@@ -94,13 +95,14 @@ module PerRide1 =
         let precipitation = if r.Snow then "snow" elif r.Rain then "rain" else "dry"
         $"{r.Temperature}/{precipitation}"
 
-    let buildSection (source: RidesDataSource) : AnalysisSection =
-        { Id = "ride-stats"
-          Title = "Ride statistics"
-          Description = "Ride counts and average earnings broken down by pickup district, time and weather."
-          Charts = []
-          Tables =
-            [ breakdownTable "By pickup district" (fun r -> r.PickupDistrict.Value) source.Rows
-              breakdownTable "By part of day" (fun r -> string r.PartOfDay) source.Rows
-              breakdownTable "By day of week" (fun r -> string r.DayOfWeek) source.Rows
-              breakdownTable "By weather" weatherLabel source.Rows ] }
+    let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
+        Task.FromResult
+            { Id = "ride-stats"
+              Title = "Ride statistics"
+              Description = "Ride counts and average earnings broken down by pickup district, time and weather."
+              Charts = []
+              Tables =
+                [ breakdownTable "By pickup district" (fun r -> r.PickupDistrict.Value) source.Rows
+                  breakdownTable "By part of day" (fun r -> string r.PartOfDay) source.Rows
+                  breakdownTable "By day of week" (fun r -> string r.DayOfWeek) source.Rows
+                  breakdownTable "By weather" weatherLabel source.Rows ] }

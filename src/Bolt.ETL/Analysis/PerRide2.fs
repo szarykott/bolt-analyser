@@ -4,6 +4,7 @@ module PerRide2 =
     
     open System
     open System.Globalization
+    open System.Threading.Tasks
     open Bolt.ETL
     open Bolt.ETL.Analytics
     open Bolt.ETL.Geo
@@ -167,29 +168,32 @@ module PerRide2 =
                 |> Array.map (fun g -> [ g.Group; fmtOpt g.Mean ])
                 |> List.ofArray })
 
-    let buildSection (source: RidesDataSource) : AnalysisSection =
-        let ols =
-            AnalyticsClient.olsRegression {
-                Rows = toAnalyticsRows source
-                Target = "price_pln"
-                DropColumns = [||]
-                CategoricalColumns = None
-                Standardize = true
-            }
+    let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
+        task {
+            let! ols =
+                AnalyticsClient.olsRegression {
+                    Rows = toAnalyticsRows source
+                    Target = "price_pln"
+                    DropColumns = [||]
+                    CategoricalColumns = None
+                    Standardize = true
+                }
 
-        let mirror =
-            AnalyticsClient.mirrorCheck {
-                Rows = toAnalyticsRows source
-                TargetColumns = [| "price_pln" |]
-                GroupMeans = Some { By = "pickup_district"; Value = "distance_km" }
-            }
+            let! mirror =
+                AnalyticsClient.mirrorCheck {
+                    Rows = toAnalyticsRows source
+                    TargetColumns = [| "price_pln" |]
+                    GroupMeans = Some { By = "pickup_district"; Value = "distance_km" }
+                }
 
-        { Id = "price-regression"
-          Title = "Price regression"
-          Description = "OLS regression of ride price against distance, time and weather, with multicollinearity diagnostics."
-          Charts = []
-          Tables =
-            [ yield coefficientsTable ols
-              yield modelStatsTable ols
-              yield vifTable mirror
-              yield! groupMeansTable mirror |> Option.toList ] }
+            return
+                { Id = "price-regression"
+                  Title = "Price regression"
+                  Description = "OLS regression of ride price against distance, time and weather, with multicollinearity diagnostics."
+                  Charts = []
+                  Tables =
+                    [ yield coefficientsTable ols
+                      yield modelStatsTable ols
+                      yield vifTable mirror
+                      yield! groupMeansTable mirror |> Option.toList ] }
+        }

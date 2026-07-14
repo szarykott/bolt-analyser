@@ -29,8 +29,7 @@ let run
 
                 let mutable authenticated = false
 
-                // Stateless login: a magic link handed in with the very first
-                // message is tried before anything else.
+                // FIXME: Remove possibility to log in with magic link as first message, only accept email address in first message
                 match initialMagicLink with
                 | Some url ->
                     match! deps.AuthenticateWithUrl session url ct with
@@ -57,6 +56,7 @@ let run
 
                 if failure.IsNone then
                     do! notify (ScrapingRides "")
+                    // FIXME: use proper async semantics, no GetAwaiter.Getresult
                     let progress detail = (notify (ScrapingRides detail)).GetAwaiter().GetResult()
 
                     match! deps.ScrapeRides session progress ct with

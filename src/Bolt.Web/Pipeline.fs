@@ -25,5 +25,5 @@ let realDeps: PipelineDeps<ScrapeSession> = {
     AuthenticateWithUrl = ScrapeSession.authenticateWithUrl
     ScrapeRides = fun session progress ct -> scrapeRides session (describeProgress >> progress) ct
     EnsureMeteo = ensureMeteoCoverage
-    RunAnalysis = fun email -> Task.Run(fun () -> AnalysisPipeline.run email)
+    RunAnalysis = AnalysisPipeline.run
 }

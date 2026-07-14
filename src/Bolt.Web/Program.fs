@@ -67,8 +67,11 @@ let main args =
 
     app.MapGet(
         "/health",
-        Func<IResult>(fun () ->
-            Results.Json {| status = "ok"; analytics = AnalyticsClient.isHealthy () |})
+        Func<Threading.Tasks.Task<IResult>>(fun () ->
+            task {
+                let! healthy = AnalyticsClient.isHealthy ()
+                return Results.Json {| status = "ok"; analytics = healthy |}
+            })
     )
     |> ignore
 
