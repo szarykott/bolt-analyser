@@ -102,3 +102,6 @@ module Json =
         
     let deserializeNode<'a> (x: JsonNode) =
         JsonSerializer.Deserialize<'a>(x, serializerSettings)
+
+    let deserializeElement<'a> (x: JsonElement) =
+        JsonSerializer.Deserialize<'a>(x, serializerSettings)

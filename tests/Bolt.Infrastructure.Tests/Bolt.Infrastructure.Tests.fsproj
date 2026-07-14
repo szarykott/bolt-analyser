@@ -13,6 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="Serialization.Tests.fs" />
         <Compile Include="Storage.Tests.fs" />
         <Compile Include="ScrapeMetadata.Tests.fs" />
     </ItemGroup>

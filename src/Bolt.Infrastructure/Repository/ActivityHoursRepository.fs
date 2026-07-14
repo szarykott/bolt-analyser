@@ -10,6 +10,9 @@ module ActivityHoursRepository =
     let saveUnstructuredDangerous email x =
         JsonStorage.writeProfile email fileName x
 
+    let getUnstructured email : System.Text.Json.JsonElement option =
+        JsonStorage.readProfile email fileName
+
     let save email (pastOrderDetails: ActivityHours) =
         JsonStorage.writeProfile email fileName pastOrderDetails
 
