@@ -51,27 +51,14 @@ module PerRide1 =
                 Temperature = TemperatureBucket.fromCelcius weatherData.Temperature
             }
             
-    let prepareRideAnalysisSource (email: string) : RidesDataSource =
-        let previousRides = (PreviousOrderRepository.get email).Value |> Array.ofSeq
-        let pastOrders = (PastOrderDetailRepository.get email).Value |> Array.ofSeq
+    let prepareRideAnalysisSource (rides: FinishedRide[]) : RidesDataSource =
         let meteo = (MeteoRepository.get ()).Value
         let districts = (DistrictsRepository.get ()).Value
-    
+
         let weatherProvider t = (Weather.getNearestDataPoint meteo t).Value
         let districtProvider = DistrictAssignment.assignCoordinatesToDistrict districts
-    
-        let finishedRide (ride: Ride) : FinishedRide option =
-            match ride.Data with
-            | Finished r -> Some r
-            | _ -> None
-    
-        let data =
-            Array.zip previousRides pastOrders
-            |> Array.map (fun (pr, pod) -> RideFactory.getRide pr pod)
-            |> Array.choose finishedRide
-            |> Array.map (RideRow.fromRide weatherProvider districtProvider)
-    
-        { Rows = data }
+
+        { Rows = rides |> Array.map (RideRow.fromRide weatherProvider districtProvider) }
     
     let private fmt (v: float) = v.ToString("F2", CultureInfo.InvariantCulture)
 

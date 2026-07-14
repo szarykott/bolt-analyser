@@ -8,7 +8,6 @@ module RideClustering =
     open Bolt.ETL
     open Bolt.ETL.Analytics
     open Bolt.ETL.Plotting
-    open Bolt.Infrastructure.Repository
     open Bolt.Models
     open Plotly.NET
 
@@ -31,22 +30,8 @@ module RideClustering =
                 Time = ride.Times.CreatedTimestamp
             }
 
-    let prepareRideAnalysisSource (email: string) : RidesDataSource =
-        let previousRides = (PreviousOrderRepository.get email).Value |> Array.ofSeq
-        let pastOrders = (PastOrderDetailRepository.get email).Value |> Array.ofSeq
-
-        let finishedRide (ride: Ride) : FinishedRide option =
-            match ride.Data with
-            | Finished r -> Some r
-            | _ -> None
-
-        let data =
-            Array.zip previousRides pastOrders
-            |> Array.map (fun (pr, pod) -> RideFactory.getRide pr pod)
-            |> Array.choose finishedRide
-            |> Array.map RideRow.fromRide
-
-        { Rows = data }
+    let prepareRideAnalysisSource (rides: FinishedRide[]) : RidesDataSource =
+        { Rows = rides |> Array.map RideRow.fromRide }
 
     let toStPoints (data: RidesDataSource) : StPoint array =
         data.Rows

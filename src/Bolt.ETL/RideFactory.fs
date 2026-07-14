@@ -68,3 +68,16 @@ module RideFactory =
                     { Created = previousOrder.CreatedTimestamp.Value |> toWarsaw
                       Stops = previousOrder.Stops |> Array.map getStops
                       State = previousOrder.State } }
+
+    /// Pairs previous orders with their details positionally (both are scraped
+    /// from the same handle list, in order) and keeps only finished rides.
+    let getFinishedRides
+        (previousOrders: PreviousOrder[])
+        (pastOrderDetails: PastOrderDetail[])
+        : FinishedRide[] =
+        Array.zip previousOrders pastOrderDetails
+        |> Array.map (fun (pr, pod) -> getRide pr pod)
+        |> Array.choose (fun ride ->
+            match ride.Data with
+            | Finished r -> Some r
+            | _ -> None)

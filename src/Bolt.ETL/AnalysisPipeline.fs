@@ -14,11 +14,14 @@ module AnalysisPipeline =
                 | None -> return Error $"No ride data found for {email}"
                 | Some orders when Seq.isEmpty orders -> return Error $"No rides found for {email}"
                 | Some orders ->
-                    let dates = orders |> Seq.map _.Created |> Array.ofSeq
+                    let previous = Array.ofSeq orders
+                    let pastOrders = (PastOrderDetailRepository.get email).Value |> Array.ofSeq
+                    let dates = previous |> Array.map _.Created
+                    let rides = RideFactory.getFinishedRides previous pastOrders
 
-                    let! perRide1 = PerRide1.buildSection (PerRide1.prepareRideAnalysisSource email)
-                    let! perRide2 = PerRide2.buildSection (PerRide2.prepareRideAnalysisSource email)
-                    let! clustering = RideClustering.buildSection (RideClustering.prepareRideAnalysisSource email)
+                    let! perRide1 = PerRide1.buildSection (PerRide1.prepareRideAnalysisSource rides)
+                    let! perRide2 = PerRide2.buildSection (PerRide2.prepareRideAnalysisSource rides)
+                    let! clustering = RideClustering.buildSection (RideClustering.prepareRideAnalysisSource rides)
 
                     return
                         Ok { Email = email
