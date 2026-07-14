@@ -54,7 +54,7 @@ let originAllowed (ctx: HttpContext) =
         | true, uri -> String.Equals(uri.Host, ctx.Request.Host.Host, StringComparison.OrdinalIgnoreCase)
         | _ -> false
 
-let handle (deps: PipelineDeps<'session>) (ctx: HttpContext) : Task =
+let handle (deps: PipelineDeps<'session, 'data>) (ctx: HttpContext) : Task =
     task {
         if not (originAllowed ctx) then
             ctx.Response.StatusCode <- StatusCodes.Status403Forbidden
@@ -84,7 +84,7 @@ let handle (deps: PipelineDeps<'session>) (ctx: HttpContext) : Task =
                 jobEmail |> Option.iter (fun e -> activeEmails.TryRemove e |> ignore)
                 jobEmail <- None
 
-            let startJob (email: string) (initialUrl: string option) =
+            let startJob (email: string) =
                 task {
                     if not (activeEmails.TryAdd(email, 0uy)) then
                         do! send (Views.errorFragment email "startup"
@@ -109,7 +109,7 @@ let handle (deps: PipelineDeps<'session>) (ctx: HttpContext) : Task =
 
                         // Fire and forget: the job talks back through `notify`,
                         // the receive loop below keeps handling client messages.
-                        JobRunner.run deps email initialUrl channel.Reader notify cts.Token
+                        JobRunner.run deps email channel.Reader notify cts.Token
                         |> ignore
                 }
 
@@ -136,7 +136,7 @@ let handle (deps: PipelineDeps<'session>) (ctx: HttpContext) : Task =
                         if not closed then
                             match parseMessage (sb.ToString()) with
                             | Some(StartAnalysis email) when jobEmail.IsNone ->
-                                do! startJob email None
+                                do! startJob email
                             | Some(StartAnalysis _) ->
                                 () // this socket already runs a job; ignore
                             | Some(MagicLink(email, url)) ->
@@ -144,8 +144,10 @@ let handle (deps: PipelineDeps<'session>) (ctx: HttpContext) : Task =
                                 | Some channel, Some _ ->
                                     channel.Writer.TryWrite url |> ignore
                                 | _ ->
-                                    // Stateless: no pending job — try the link directly.
-                                    do! startJob email (Some url)
+                                    // A job must be started with an e-mail first;
+                                    // a magic link can never be the first message.
+                                    do! send (Views.errorFragment email "authentication"
+                                                  "Start the analysis with your e-mail address first.")
                             | None -> ()
                 with
                 | :? WebSocketException -> () // abrupt client disconnect

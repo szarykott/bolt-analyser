@@ -17,6 +17,7 @@
         <Compile Include="PerRide1.Tests.fs" />
         <Compile Include="PerRide2.Tests.fs" />
         <Compile Include="RideClustering.Tests.fs" />
+        <Compile Include="AnalysisPipeline.Tests.fs" />
     </ItemGroup>
 
     <ItemGroup>

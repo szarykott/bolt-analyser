@@ -6,6 +6,8 @@ open System.Threading
 open System.Threading.Tasks
 open Bolt.Infrastructure.Repository
 open Bolt.Infrastrucutre.ces.TaskResultBuilder
+open Bolt.Infrastrucutre.Serialization
+open Bolt.Models.BoltApi
 open Bolt.Models.Geo
 open Bolt.Models.Meteo
 open Bolt.Scraper.BoltApi.ApiModels
@@ -80,51 +82,72 @@ module MeteoCoverage =
     let cappedMax (now: DateTimeOffset) (rideMax: DateTimeOffset) : DateTimeOffset =
         min rideMax (now - archiveLag)
 
-// FIXME: scrapeRides should not persist files to disk, but keep them in memory and return for further analysis
-// RunAnalysis step should take them as argument
+/// Scrapes everything for the session's account and returns it in memory.
+/// DEBUG builds also persist the raw responses to disk (same files the
+/// debugging tools read); production writes nothing.
 let scrapeRides
     (session: ScrapeSession)
-    (report: ScrapeProgress -> unit)
+    (report: ScrapeProgress -> Task)
     (ct: CancellationToken)
-    : Task<Result<unit, string>> =
+    : Task<Result<ScrapedData, string>> =
     let bolt = BoltClient.fromConfig session.Config
     let email = session.Email
 
-    mapApiError (taskResult {
-        report ScrapingProfile
-        do! BoltClient.getDriverProfile bolt
-            |>! DriverProfileRepository.saveUnstructuredDangerous email
+    task {
+        let! scraped =
+            mapApiError (taskResult {
+                do! report ScrapingProfile
+                let! profile = BoltClient.getDriverProfile bolt
 
-        report ScrapingActivityHours
-        do! BoltClient.getActivityHours bolt
-            |>! ActivityHoursRepository.saveUnstructuredDangerous email
+                do! report ScrapingActivityHours
+                let! activity = BoltClient.getActivityHours bolt
 
-        report ScrapingOrderHistory
-        let! handles, history = BoltClient.getOrderHistory bolt
-        history |> OrderHistoryRepository.saveUnstructuredDangerous email
+                do! report ScrapingOrderHistory
+                let! handles, history = BoltClient.getOrderHistory bolt
 
-        let handles = handles |> Array.ofSeq
-        let total = handles.Length
-        let previous = ResizeArray()
-        let details = ResizeArray()
-        let mutable i = 0
+                let handles = handles |> Array.ofSeq
+                let total = handles.Length
+                let previous = ResizeArray()
+                let details = ResizeArray()
+                let mutable i = 0
 
-        do! taskResult {
-            while i < total do
-                ct.ThrowIfCancellationRequested()
-                report (ScrapingOrderDetails(i + 1, total))
-                let! p = BoltClient.getPreviousOrder bolt handles[i]
-                let! d = BoltClient.getPastOrderDetails bolt handles[i]
-                previous.Add p
-                details.Add d
-                i <- i + 1
-        }
+                do! taskResult {
+                    while i < total do
+                        ct.ThrowIfCancellationRequested()
+                        do! report (ScrapingOrderDetails(i + 1, total))
+                        let! p = BoltClient.getPreviousOrder bolt handles[i]
+                        let! d = BoltClient.getPastOrderDetails bolt handles[i]
+                        previous.Add p
+                        details.Add d
+                        i <- i + 1
+                }
 
-        PreviousOrderRepository.saveUnstructuredDangerous email (previous.ToArray())
-        PastOrderDetailRepository.saveUnstructuredDangerous email (details.ToArray())
-        ScrapeMetadataRepository.save email { ScrapedAt = DateTimeOffset.UtcNow }
-        return ()
-    })
+                return (profile, activity, Array.ofSeq history, previous.ToArray(), details.ToArray())
+            })
+
+        match scraped with
+        | Error e -> return Error e
+        | Ok(profile, activity, history, previous, details) ->
+            try
+                let data =
+                    { Email = email
+                      Profile = profile
+                      ActivityHours = activity
+                      OrderHistory = history
+                      PreviousOrders = previous |> Array.map Json.deserializeElement<PreviousOrder>
+                      PastOrderDetails = details |> Array.map Json.deserializeElement<PastOrderDetail> }
+#if DEBUG
+                DriverProfileRepository.saveUnstructuredDangerous email profile
+                ActivityHoursRepository.saveUnstructuredDangerous email activity
+                OrderHistoryRepository.saveUnstructuredDangerous email history
+                PreviousOrderRepository.saveUnstructuredDangerous email previous
+                PastOrderDetailRepository.saveUnstructuredDangerous email details
+                ScrapeMetadataRepository.save email { ScrapedAt = DateTimeOffset.UtcNow }
+#endif
+                return Ok data
+            with ex ->
+                return Error $"Could not parse scraped data: {ex.Message}"
+    }
 
 // Meteo file is shared across users; serialize read-merge-save.
 let private meteoLock = obj ()

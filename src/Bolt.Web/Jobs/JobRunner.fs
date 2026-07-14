@@ -6,14 +6,13 @@ open System.Threading.Channels
 open System.Threading.Tasks
 open Bolt.Web.Jobs
 
-/// One analysis job, bound to one socket. Magic-link URLs arrive on
-/// `magicLinks` whenever the client sends one (stateless: each is simply
-/// tried). Every state change goes out through `notify`. Cancellation
-/// (socket gone) stops the job without a terminal notification.
+/// One analysis job, bound to one socket. The first client message must be an
+/// e-mail (StartAnalysis); magic-link URLs arrive on `magicLinks` afterwards
+/// and each is simply tried. Every state change goes out through `notify`.
+/// Cancellation (socket gone) stops the job without a terminal notification.
 let run
-    (deps: PipelineDeps<'session>)
+    (deps: PipelineDeps<'session, 'data>)
     (email: string)
-    (initialMagicLink: string option)
     (magicLinks: ChannelReader<string>)
     (notify: JobState -> Task)
     (ct: CancellationToken)
@@ -22,22 +21,17 @@ let run
         try
             do! notify CheckingCache
             let mutable failure: (string * string) option = None
+            let mutable data: 'data option = None
 
-            if not (deps.IsFresh email) then
+            match deps.LoadCached email with
+            | Some cached -> data <- Some cached
+            | None ->
                 let session = deps.CreateSession email
                 do! notify Authenticating
 
                 let mutable authenticated = false
 
-                // FIXME: Remove possibility to log in with magic link as first message, only accept email address in first message
-                match initialMagicLink with
-                | Some url ->
-                    match! deps.AuthenticateWithUrl session url ct with
-                    | Ok() -> authenticated <- true
-                    | Error e -> do! notify (AwaitingMagicLink(Some e))
-                | None -> ()
-
-                if not authenticated && deps.HasTokens session then
+                if deps.HasTokens session then
                     match! deps.RefreshTokens session ct with
                     | Ok() -> authenticated <- true
                     | Error _ -> () // stale cache; fall through to magic link
@@ -56,26 +50,28 @@ let run
 
                 if failure.IsNone then
                     do! notify (ScrapingRides "")
-                    // FIXME: use proper async semantics, no GetAwaiter.Getresult
-                    let progress detail = (notify (ScrapingRides detail)).GetAwaiter().GetResult()
+                    let progress detail = notify (ScrapingRides detail)
 
                     match! deps.ScrapeRides session progress ct with
                     | Error e -> failure <- Some("scraping rides", e)
-                    | Ok() ->
-                        do! notify FetchingMeteo
+                    | Ok d -> data <- Some d
 
-                        match! deps.EnsureMeteo email ct with
-                        | Error e -> failure <- Some("fetching weather data", e)
-                        | Ok() -> ()
+            match failure, data with
+            | Some(step, e), _ -> do! notify (Failed(step, e))
+            | None, Some d when deps.RideCountOf d = 0 ->
+                do! notify (Failed("scraping rides", "No rides found for this account"))
+            | None, Some d ->
+                do! notify FetchingMeteo
 
-            match failure with
-            | Some(step, e) -> do! notify (Failed(step, e))
-            | None ->
-                do! notify RunningAnalysis
+                match! deps.EnsureMeteo d ct with
+                | Error e -> do! notify (Failed("fetching weather data", e))
+                | Ok cap ->
+                    do! notify RunningAnalysis
 
-                match! deps.RunAnalysis email with
-                | Ok report -> do! notify (Done report)
-                | Error e -> do! notify (Failed("analysis", e))
+                    match! deps.RunAnalysis d cap with
+                    | Ok report -> do! notify (Done report)
+                    | Error e -> do! notify (Failed("analysis", e))
+            | None, None -> () // request-magic-link failed; already reported above
         with
         | :? OperationCanceledException -> ()
         | ex -> do! notify (Failed("internal", ex.Message))

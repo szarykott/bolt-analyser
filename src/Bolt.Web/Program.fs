@@ -5,6 +5,7 @@ open System.Threading
 open Bolt.ETL.Analytics
 open Bolt.Infrastructure.Repository
 open Bolt.Infrastrucutre.storage.Constants
+open Bolt.Models.BoltApi
 open Bolt.Scraper.Krakow.Districts
 open Bolt.Scraper.ScrapePipeline
 open Bolt.Web.Jobs
@@ -29,7 +30,7 @@ let ensureDistricts () =
 [<EntryPoint>]
 let main args =
     let builder = WebApplication.CreateBuilder(args)
-    builder.Services.AddSingleton<PipelineDeps<ScrapeSession>>(Pipeline.realDeps) |> ignore
+    builder.Services.AddSingleton<PipelineDeps<ScrapeSession, ScrapedData>>(Pipeline.realDeps) |> ignore
     let app = builder.Build()
 
     Paths.ensureStorageExists () |> ignore
@@ -52,7 +53,7 @@ let main args =
     app.Map(
         "/ws",
         Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
-            let deps = ctx.RequestServices.GetRequiredService<PipelineDeps<ScrapeSession>>()
+            let deps = ctx.RequestServices.GetRequiredService<PipelineDeps<ScrapeSession, ScrapedData>>()
             WebSockets.handle deps ctx)
     )
     |> ignore

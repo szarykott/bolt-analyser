@@ -12,6 +12,7 @@
         <Compile Include="BoltApi\DriverProfile.fs"/>
         <Compile Include="BoltApi\History.fs"/>
         <Compile Include="BoltApi\PastOrderDetail.fs"/>
+        <Compile Include="BoltApi\ScrapedData.fs"/>
         <Compile Include="Geo\District.fs"/>
         <Compile Include="Meteo.fs"/>
         <Compile Include="Ride.fs"/>

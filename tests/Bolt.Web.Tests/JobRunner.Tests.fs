@@ -18,40 +18,44 @@ let private report: AnalysisReport = {
     Sections = []
 }
 
+let private cap = DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
 let private ok () : Task<Result<unit, string>> = Task.FromResult(Ok())
 let private err e : Task<Result<unit, string>> = Task.FromResult(Error e)
 
-/// Happy-path deps over a unit session; individual tests override fields.
-let private baseDeps: PipelineDeps<unit> = {
-    IsFresh = fun _ -> false
+/// Happy-path deps over a unit session and int data (the ride count);
+/// individual tests override fields.
+let private baseDeps: PipelineDeps<unit, int> = {
+    LoadCached = fun _ -> None
     CreateSession = fun _ -> ()
     HasTokens = fun _ -> false
     RefreshTokens = fun _ _ -> ok ()
     RequestMagicLink = fun _ _ -> ok ()
     AuthenticateWithUrl = fun _ _ _ -> ok ()
-    ScrapeRides = fun _ _ _ -> ok ()
-    EnsureMeteo = fun _ _ -> ok ()
-    RunAnalysis = fun _ -> Task.FromResult(Ok report)
+    ScrapeRides = fun _ _ _ -> Task.FromResult(Ok 3)
+    EnsureMeteo = fun _ _ -> Task.FromResult(Ok cap)
+    RunAnalysis = fun _ _ -> Task.FromResult(Ok report)
+    RideCountOf = id
 }
 
-let private runToEnd deps initialLink (feed: string list) =
+let private runToEnd deps (feed: string list) =
     let states = ConcurrentQueue<JobState>()
     let channel = Channel.CreateUnbounded<string>()
     for url in feed do channel.Writer.TryWrite url |> ignore
     let notify state = states.Enqueue state; Task.CompletedTask
-    (JobRunner.run deps "a@b.pl" initialLink channel.Reader notify CancellationToken.None)
+    (JobRunner.run deps "a@b.pl" channel.Reader notify CancellationToken.None)
         .GetAwaiter()
         .GetResult()
     states |> List.ofSeq
 
 [<Fact>]
-let ``fresh cache short-circuits to analysis`` () =
-    let states = runToEnd { baseDeps with IsFresh = fun _ -> true } None []
-    Assert.Equal<JobState list>([ CheckingCache; RunningAnalysis; Done report ], states)
+let ``cached data skips auth and scraping`` () =
+    let states = runToEnd { baseDeps with LoadCached = fun _ -> Some 3 } []
+    Assert.Equal<JobState list>(
+        [ CheckingCache; FetchingMeteo; RunningAnalysis; Done report ], states)
 
 [<Fact>]
 let ``no tokens goes through magic link then scrapes`` () =
-    let states = runToEnd baseDeps None [ "https://link" ]
+    let states = runToEnd baseDeps [ "https://link" ]
     Assert.Contains(AwaitingMagicLink None, states)
     Assert.Contains(FetchingMeteo, states)
     Assert.Equal(Done report, List.last states)
@@ -64,21 +68,15 @@ let ``invalid magic link keeps awaiting with error`` () =
             AuthenticateWithUrl = fun _ url _ ->
                 attempts.Enqueue url
                 if url = "bad" then err "bad token" else ok () }
-    let states = runToEnd deps None [ "bad"; "good" ]
+    let states = runToEnd deps [ "bad"; "good" ]
     Assert.Contains(AwaitingMagicLink(Some "bad token"), states)
     Assert.Equal(Done report, List.last states)
     Assert.Equal(2, attempts.Count)
 
 [<Fact>]
-let ``initial magic link skips waiting (stateless login)`` () =
-    let states = runToEnd baseDeps (Some "https://link") []
-    Assert.DoesNotContain(AwaitingMagicLink None, states)
-    Assert.Equal(Done report, List.last states)
-
-[<Fact>]
 let ``valid saved tokens skip magic link`` () =
     let deps = { baseDeps with HasTokens = fun _ -> true }
-    let states = runToEnd deps None []
+    let states = runToEnd deps []
     Assert.DoesNotContain(AwaitingMagicLink None, states)
     Assert.Equal(Done report, List.last states)
 
@@ -87,9 +85,38 @@ let ``scrape failure ends in Failed`` () =
     let deps =
         { baseDeps with
             HasTokens = fun _ -> true
-            ScrapeRides = fun _ _ _ -> err "boom" }
-    let states = runToEnd deps None []
+            ScrapeRides = fun _ _ _ -> Task.FromResult(Error "boom") }
+    let states = runToEnd deps []
     Assert.Equal(Failed("scraping rides", "boom"), List.last states)
+
+[<Fact>]
+let ``zero scraped rides fail at the scraping step`` () =
+    let deps =
+        { baseDeps with
+            HasTokens = fun _ -> true
+            ScrapeRides = fun _ _ _ -> Task.FromResult(Ok 0) }
+    let states = runToEnd deps []
+    Assert.Equal(
+        Failed("scraping rides", "No rides found for this account"), List.last states)
+
+[<Fact>]
+let ``weather cap flows from EnsureMeteo into RunAnalysis`` () =
+    let received = ConcurrentQueue<DateTimeOffset>()
+    let deps =
+        { baseDeps with
+            HasTokens = fun _ -> true
+            RunAnalysis = fun _ c -> received.Enqueue c; Task.FromResult(Ok report) }
+    runToEnd deps [] |> ignore
+    Assert.Equal<DateTimeOffset list>([ cap ], List.ofSeq received)
+
+[<Fact>]
+let ``meteo failure ends in Failed at the weather step`` () =
+    let deps =
+        { baseDeps with
+            HasTokens = fun _ -> true
+            EnsureMeteo = fun _ _ -> Task.FromResult(Error "boom") }
+    let states = runToEnd deps []
+    Assert.Equal(Failed("fetching weather data", "boom"), List.last states)
 
 [<Fact>]
 let ``cancellation while awaiting magic link produces no terminal state`` () =
@@ -97,7 +124,7 @@ let ``cancellation while awaiting magic link produces no terminal state`` () =
     let channel = Channel.CreateUnbounded<string>()
     use cts = new CancellationTokenSource()
     let notify state = states.Enqueue state; Task.CompletedTask
-    let running = JobRunner.run baseDeps "a@b.pl" None channel.Reader notify cts.Token
+    let running = JobRunner.run baseDeps "a@b.pl" channel.Reader notify cts.Token
     // Give the runner a moment to reach the await, then cancel.
     Task.Delay(100).GetAwaiter().GetResult()
     cts.Cancel()
