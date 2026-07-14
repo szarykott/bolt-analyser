@@ -73,6 +73,15 @@ module MeteoCoverage =
             [ if rideMin < haveMin then yield (rideMin, haveMin)
               if rideMax > haveMax then yield (haveMax, rideMax) ]
 
+    /// The open-meteo archive lags a few days behind real time.
+    let archiveLag = TimeSpan.FromDays 5.0
+
+    /// Latest ride date the weather archive can cover right now.
+    let cappedMax (now: DateTimeOffset) (rideMax: DateTimeOffset) : DateTimeOffset =
+        min rideMax (now - archiveLag)
+
+// FIXME: scrapeRides should not persist files to disk, but keep them in memory and return for further analysis
+// RunAnalysis step should take them as argument
 let scrapeRides
     (session: ScrapeSession)
     (report: ScrapeProgress -> unit)
@@ -120,33 +129,30 @@ let scrapeRides
 // Meteo file is shared across users; serialize read-merge-save.
 let private meteoLock = obj ()
 
-let ensureMeteoCoverage (email: string) (ct: CancellationToken) : Task<Result<unit, string>> =
+/// Fetches whatever weather data is missing for [rideMin, rideMax] and returns
+/// the effective coverage cap: rides created after it have no weather data and
+/// must be excluded from weather-dependent analyses.
+let ensureMeteoCoverage
+    (rideMin: DateTimeOffset, rideMax: DateTimeOffset)
+    (ct: CancellationToken)
+    : Task<Result<DateTimeOffset, string>> =
     task {
-        match PreviousOrderRepository.get email with
-        | None -> return Error "No scraped ride data found; cannot determine weather range"
-        | Some orders when Seq.isEmpty orders -> return Error "No rides found for this account"
-        | Some orders ->
-            let dates = orders |> Seq.map _.Created
-            // The open-meteo archive lags a few days behind real time.
-            let cap = DateTimeOffset.UtcNow.AddDays -3.0
-            let rideMin = Seq.min dates
-            let rideMax = min (Seq.max dates) cap
+        let cap = MeteoCoverage.cappedMax DateTimeOffset.UtcNow rideMax
+        let existingRange = MeteoRepository.get () |> Option.bind Weather.hourRange
+        let ranges = MeteoCoverage.missingRanges (rideMin, cap) existingRange
 
-            let existingRange = MeteoRepository.get () |> Option.bind Weather.hourRange
-            let ranges = MeteoCoverage.missingRanges (rideMin, rideMax) existingRange
-
-            let mutable result = Ok()
-            for from, to' in ranges do
-                if Result.isOk result && from < to' then
-                    ct.ThrowIfCancellationRequested()
-                    match! getWeatherData from to' ScrapeSession.krakowCenter with
-                    | Error e -> result <- Error $"Weather fetch failed: {e}"
-                    | Ok fetched ->
-                        lock meteoLock (fun () ->
-                            let merged =
-                                match MeteoRepository.get () with
-                                | Some existing -> Weather.merge existing fetched
-                                | None -> fetched
-                            MeteoRepository.save merged)
-            return result
+        let mutable result = Ok cap
+        for from, to' in ranges do
+            if Result.isOk result && from < to' then
+                ct.ThrowIfCancellationRequested()
+                match! getWeatherData from to' ScrapeSession.krakowCenter with
+                | Error e -> result <- Error $"Weather fetch failed: {e}"
+                | Ok fetched ->
+                    lock meteoLock (fun () ->
+                        let merged =
+                            match MeteoRepository.get () with
+                            | Some existing -> Weather.merge existing fetched
+                            | None -> fetched
+                        MeteoRepository.save merged)
+        return result
     }

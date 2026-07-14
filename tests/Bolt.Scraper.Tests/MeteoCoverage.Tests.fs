@@ -28,3 +28,11 @@ let ``gap before and after existing coverage`` () =
     Assert.Equal<(DateTimeOffset * DateTimeOffset) list>(
         [ (at "2026-01-01Z", at "2026-01-10Z"); (at "2026-02-10Z", at "2026-03-01Z") ],
         ranges)
+
+[<Fact>]
+let ``cappedMax returns rideMax when the archive already covers it`` () =
+    Assert.Equal(at "2026-07-01Z", MeteoCoverage.cappedMax (at "2026-07-13Z") (at "2026-07-01Z"))
+
+[<Fact>]
+let ``cappedMax clamps to the archive lag before now`` () =
+    Assert.Equal(at "2026-07-08Z", MeteoCoverage.cappedMax (at "2026-07-13Z") (at "2026-07-12Z"))

@@ -24,6 +24,17 @@ let realDeps: PipelineDeps<ScrapeSession> = {
     RequestMagicLink = ScrapeSession.requestMagicLink
     AuthenticateWithUrl = ScrapeSession.authenticateWithUrl
     ScrapeRides = fun session progress ct -> scrapeRides session (describeProgress >> progress) ct
-    EnsureMeteo = ensureMeteoCoverage
+    // Temporary bridge until PipelineDeps carries ScrapedData (next task):
+    // reads the repository to derive the ride date range, discards the cap.
+    EnsureMeteo = fun email ct ->
+        task {
+            match PreviousOrderRepository.get email with
+            | None -> return Error "No scraped ride data found; cannot determine weather range"
+            | Some orders when Seq.isEmpty orders -> return Error "No rides found for this account"
+            | Some orders ->
+                let dates = orders |> Seq.map _.Created
+                let! result = ensureMeteoCoverage (Seq.min dates, Seq.max dates) ct
+                return result |> Result.map ignore
+        }
     RunAnalysis = AnalysisPipeline.run
 }
