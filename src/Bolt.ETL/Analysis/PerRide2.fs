@@ -95,21 +95,30 @@ module PerRide2 =
 
         { Rows = rides |> Array.map (RideRow.fromRide weatherProvider districtProvider) }
     
-    // JSON rows for the analytics service, keyed by the CSV header names.
-    // Units of measure / decimal unwrapped before boxing so values serialize
-    // as plain JSON numbers; bools stay bools (service keeps false <> 0.0).
+    let private temperatureName (t: TemperatureBucket) =
+        match t with
+        | Frost -> "mróz"
+        | Cold -> "zimno"
+        | Mild -> "umiarkowanie"
+        | Hot -> "gorąco"
+
+    // JSON rows for the analytics service. Column names are Polish on purpose:
+    // pd.get_dummies builds coefficient names as "column_value", so Polish keys
+    // (and Polish temperature values) make the OLS response display-ready with
+    // no name mapping on the way back. Units of measure / decimal unwrapped
+    // before boxing so values serialize as plain JSON numbers; bools stay bools.
     let toAnalyticsRows (data: RidesDataSource) : Map<string, obj> array =
         data.Rows
         |> Array.map (fun r ->
             Map.ofList [
-                "price_pln", box (float r.PricePln)
-                "distance_km", box (float r.Distance)
-                "is_rush_hour", box r.IsRushHour
-                "is_weekend", box r.IsWeekend
-                "pickup_district", box r.PickupDistrict
-                "rain", box r.Rain
-                "snow", box r.Snow
-                "temperature_bucket", box (r.Temperature.ToString())
+                "cena_pln", box (float r.PricePln)
+                "dystans_km", box (float r.Distance)
+                "godziny_szczytu", box r.IsRushHour
+                "weekend", box r.IsWeekend
+                "dzielnica", box r.PickupDistrict
+                "deszcz", box r.Rain
+                "śnieg", box r.Snow
+                "temperatura", box (temperatureName r.Temperature)
             ])
 
     let private pl = CultureInfo.GetCultureInfo "pl-PL"
@@ -188,7 +197,7 @@ module PerRide2 =
             let! ols =
                 AnalyticsClient.olsRegression {
                     Rows = toAnalyticsRows source
-                    Target = "price_pln"
+                    Target = "cena_pln"
                     DropColumns = [||]
                     CategoricalColumns = None
                     Standardize = true

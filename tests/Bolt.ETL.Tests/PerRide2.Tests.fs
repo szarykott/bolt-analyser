@@ -3,6 +3,8 @@ module Bolt.ETL.Tests.PerRide2Tests
 open Xunit
 open Bolt.ETL.Analysis
 open Bolt.ETL.Analytics
+open Bolt.Models
+open Bolt.ETL.Meteo.Model
 
 let private coef name c p lo hi : Coefficient =
     { Name = name; Coef = c; StdErr = Some 0.1; TValue = Some 1.0
@@ -83,3 +85,25 @@ let ``modelStatsTable shows fit in Polish with comma decimals`` () =
     Assert.Contains<string list>([ "R²"; "0,42" ], table.Rows)
     Assert.Contains<string list>([ "skorygowane R²"; "0,40" ], table.Rows)
     Assert.Contains("42%", table.Notes.Head)
+
+[<Fact>]
+let ``toAnalyticsRows emits Polish column names and temperature values`` () =
+    let source: PerRide2.RidesDataSource = {
+        Rows =
+            [| { PricePln = 25.5m
+                 Distance = 3.2<km>
+                 IsRushHour = true
+                 IsWeekend = false
+                 PickupDistrict = "centrum"
+                 Rain = true
+                 Snow = false
+                 Temperature = Mild } |]
+    }
+    let row = (PerRide2.toAnalyticsRows source)[0]
+    Assert.Equal<Set<string>>(
+        Set [ "cena_pln"; "dystans_km"; "godziny_szczytu"; "weekend"
+              "deszcz"; "śnieg"; "dzielnica"; "temperatura" ],
+        row |> Map.toSeq |> Seq.map fst |> Set.ofSeq)
+    Assert.Equal(box 25.5, row["cena_pln"])
+    Assert.Equal(box true, row["deszcz"])
+    Assert.Equal(box "umiarkowanie", row["temperatura"])
