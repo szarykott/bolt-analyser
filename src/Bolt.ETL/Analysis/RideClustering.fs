@@ -53,7 +53,8 @@ module RideClustering =
                   c.CentroidLatitude.ToString("F5", CultureInfo.InvariantCulture)
                   c.CentroidLongitude.ToString("F5", CultureInfo.InvariantCulture)
                   c.MeanHour.ToString("F2", CultureInfo.InvariantCulture) ])
-            |> List.ofArray }
+            |> List.ofArray
+          Notes = [] }
 
     let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
         task {

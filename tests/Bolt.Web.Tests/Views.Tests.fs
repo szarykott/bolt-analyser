@@ -30,7 +30,7 @@ let ``report fragment embeds figure json and tables`` () =
                 Title = "Section <1>"
                 Description = "desc"
                 Charts = [ { Title = "Map"; PlotlyFigureJson = """{"data":[],"layout":{}}""" } ]
-                Tables = [ { Title = "T"; Headers = [ "h" ]; Rows = [ [ "<cell>" ] ] } ] } ]
+                Tables = [ { Title = "T"; Headers = [ "h" ]; Rows = [ [ "<cell>" ] ]; Notes = [] } ] } ]
     }
     let html = Views.reportFragment report
     Assert.Contains("report-content", html)
@@ -63,6 +63,23 @@ let ``index page wires htmx websocket and panel`` () =
     Assert.Contains("<div id=\"panel\">", html)
     Assert.Contains("start-analysis", html)
     Assert.Contains("/app.js", html)
+
+[<Fact>]
+let ``table notes render as legend list`` () =
+    let report = {
+        Email = "a@b.pl"
+        GeneratedAt = DateTimeOffset.UtcNow
+        RideCount = 1
+        DateRange = (DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+        Sections =
+            [ { Id = "s1"; Title = "t"; Description = ""
+                Charts = []
+                Tables = [ { Title = "T"; Headers = [ "h" ]; Rows = []
+                             Notes = [ "objaśnienie <a>" ] } ] } ]
+    }
+    let html = Views.reportFragment report
+    Assert.Contains("<ul class=\"notes\">", html)
+    Assert.Contains("objaśnienie &lt;a&gt;", html)
 
 [<Fact>]
 let ``email attribute is single-encoded by the view engine`` () =

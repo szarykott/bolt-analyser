@@ -76,7 +76,8 @@ module PerRide1 =
 
         { Title = title
           Headers = [ "group"; "rides"; "avg price [PLN]"; "avg [PLN/km]" ]
-          Rows = dataRows }
+          Rows = dataRows
+          Notes = [] }
 
     let private weatherLabel (r: RideRow) =
         let precipitation = if r.Snow then "snow" elif r.Rain then "rain" else "dry"

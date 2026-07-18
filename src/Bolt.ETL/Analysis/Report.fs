@@ -6,6 +6,8 @@ type ResultTable = {
     Title: string
     Headers: string list
     Rows: string list list
+    /// Legend / interpretation lines rendered under the table.
+    Notes: string list
 }
 
 type ResultChart = {

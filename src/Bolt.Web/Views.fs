@@ -15,6 +15,7 @@ body { font-family: sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0
 table { border-collapse: collapse; margin: 1rem 0; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.7rem; text-align: left; }
 .error { color: #b00; }
+.notes { font-size: 0.85rem; color: #555; max-width: 80ch; }
 """
 
 let indexPage () =
@@ -85,6 +86,8 @@ let private tableNodes (t: ResultTable) = [
         thead [] [ tr [] [ for h in t.Headers -> th [] [ str h ] ] ]
         tbody [] [ for r in t.Rows -> tr [] [ for c in r -> td [] [ str c ] ] ]
     ]
+    if not (List.isEmpty t.Notes) then
+        ul [ _class "notes" ] [ for n in t.Notes -> li [] [ str n ] ]
 ]
 
 let private chartNodes (sectionId: string) (index: int) (c: ResultChart) =

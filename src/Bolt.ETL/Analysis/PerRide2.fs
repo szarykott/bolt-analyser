@@ -125,7 +125,8 @@ module PerRide2 =
             |> Array.map (fun c ->
                 [ c.Name; fmtOpt c.Coef; fmtOpt c.StdErr; fmtOpt c.TValue
                   fmtOpt c.PValue; fmtOpt c.CiLow; fmtOpt c.CiHigh ])
-            |> List.ofArray }
+            |> List.ofArray
+          Notes = [] }
 
     let modelStatsTable (response: OlsResponse) : ResultTable =
         { Title = "Model statistics"
@@ -135,7 +136,8 @@ module PerRide2 =
               [ "R²"; fmtOpt response.RSquared ]
               [ "adjusted R²"; fmtOpt response.AdjRSquared ]
               [ "F statistic"; fmtOpt response.FStatistic ]
-              [ "F p-value"; fmtOpt response.FPvalue ] ] }
+              [ "F p-value"; fmtOpt response.FPvalue ] ]
+          Notes = [] }
 
     let vifTable (response: MirrorCheckResponse) : ResultTable =
         { Title = "Variance inflation factors"
@@ -143,7 +145,8 @@ module PerRide2 =
           Rows =
             response.Vif
             |> Array.map (fun v -> [ v.Feature; fmtOpt v.Vif ])
-            |> List.ofArray }
+            |> List.ofArray
+          Notes = [] }
 
     let groupMeansTable (response: MirrorCheckResponse) : ResultTable option =
         response.GroupMeans
@@ -153,7 +156,8 @@ module PerRide2 =
               Rows =
                 groupMeans
                 |> Array.map (fun g -> [ g.Group; fmtOpt g.Mean ])
-                |> List.ofArray })
+                |> List.ofArray
+              Notes = [] })
 
     let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
         task {
