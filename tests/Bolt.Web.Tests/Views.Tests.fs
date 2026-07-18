@@ -17,6 +17,7 @@ let ``magic link fragment carries email and shows error`` () =
     Assert.Contains("value=\"a@b.pl\"", html)
     Assert.Contains("magic-link", html)
     Assert.Contains("bad &lt;token&gt;", html)
+    Assert.Contains("Zaloguj się", html)
 
 [<Fact>]
 let ``report fragment embeds figure json and tables`` () =
@@ -39,6 +40,8 @@ let ``report fragment embeds figure json and tables`` () =
     Assert.Contains("Section &lt;1&gt;", html)
     Assert.Contains("&lt;cell&gt;", html)
     Assert.Contains("downloadReport()", html)
+    Assert.Contains("Pobierz raport", html)
+    Assert.Contains("42 przejazd&#243;w", html)
 
 [<Fact>]
 let ``script-bound json escapes closing tags`` () =
@@ -63,6 +66,9 @@ let ``index page wires htmx websocket and panel`` () =
     Assert.Contains("<div id=\"panel\">", html)
     Assert.Contains("start-analysis", html)
     Assert.Contains("/app.js", html)
+    Assert.Contains("lang=\"pl\"", html)
+    // The view engine emits U+00A0–U+00FF as numeric entities: ó → &#243;
+    Assert.Contains("Analiza przejazd&#243;w Bolt", html)
 
 [<Fact>]
 let ``table notes render as legend list`` () =

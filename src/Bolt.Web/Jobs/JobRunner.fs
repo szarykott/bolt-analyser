@@ -38,7 +38,7 @@ let run
 
                 if not authenticated then
                     match! deps.RequestMagicLink session ct with
-                    | Error e -> failure <- Some("requesting magic link", e)
+                    | Error e -> failure <- Some("wysyłanie linku do logowania", e)
                     | Ok() ->
                         do! notify (AwaitingMagicLink None)
 
@@ -53,26 +53,26 @@ let run
                     let progress detail = notify (ScrapingRides detail)
 
                     match! deps.ScrapeRides session progress ct with
-                    | Error e -> failure <- Some("scraping rides", e)
+                    | Error e -> failure <- Some("pobieranie przejazdów", e)
                     | Ok d -> data <- Some d
 
             match failure, data with
             | Some(step, e), _ -> do! notify (Failed(step, e))
             | None, Some d when deps.RideCountOf d = 0 ->
-                do! notify (Failed("scraping rides", "No rides found for this account"))
+                do! notify (Failed("pobieranie przejazdów", "Nie znaleziono przejazdów dla tego konta"))
             | None, Some d ->
                 do! notify FetchingMeteo
 
                 match! deps.EnsureMeteo d ct with
-                | Error e -> do! notify (Failed("fetching weather data", e))
+                | Error e -> do! notify (Failed("pobieranie danych pogodowych", e))
                 | Ok cap ->
                     do! notify RunningAnalysis
 
                     match! deps.RunAnalysis d cap with
                     | Ok report -> do! notify (Done report)
-                    | Error e -> do! notify (Failed("analysis", e))
+                    | Error e -> do! notify (Failed("analiza", e))
             | None, None -> () // request-magic-link failed; already reported above
         with
         | :? OperationCanceledException -> ()
-        | ex -> do! notify (Failed("internal", ex.Message))
+        | ex -> do! notify (Failed("błąd wewnętrzny", ex.Message))
     }

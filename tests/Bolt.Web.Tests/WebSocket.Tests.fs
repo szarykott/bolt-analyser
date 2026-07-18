@@ -116,4 +116,4 @@ let ``magic link as first message yields an error and starts no job`` () =
     sendText socket """{"msgType":"magic-link","email":"a@b.pl","url":"https://link"}"""
 
     let response = receiveText socket
-    Assert.Contains("Start the analysis with your e-mail address first.", response)
+    Assert.Contains("Najpierw rozpocznij analizę, podając adres e-mail.", response)

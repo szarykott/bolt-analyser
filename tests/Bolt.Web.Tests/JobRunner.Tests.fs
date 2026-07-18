@@ -87,7 +87,7 @@ let ``scrape failure ends in Failed`` () =
             HasTokens = fun _ -> true
             ScrapeRides = fun _ _ _ -> Task.FromResult(Error "boom") }
     let states = runToEnd deps []
-    Assert.Equal(Failed("scraping rides", "boom"), List.last states)
+    Assert.Equal(Failed("pobieranie przejazdów", "boom"), List.last states)
 
 [<Fact>]
 let ``zero scraped rides fail at the scraping step`` () =
@@ -97,7 +97,7 @@ let ``zero scraped rides fail at the scraping step`` () =
             ScrapeRides = fun _ _ _ -> Task.FromResult(Ok 0) }
     let states = runToEnd deps []
     Assert.Equal(
-        Failed("scraping rides", "No rides found for this account"), List.last states)
+        Failed("pobieranie przejazdów", "Nie znaleziono przejazdów dla tego konta"), List.last states)
 
 [<Fact>]
 let ``weather cap flows from EnsureMeteo into RunAnalysis`` () =
@@ -116,7 +116,7 @@ let ``meteo failure ends in Failed at the weather step`` () =
             HasTokens = fun _ -> true
             EnsureMeteo = fun _ _ -> Task.FromResult(Error "boom") }
     let states = runToEnd deps []
-    Assert.Equal(Failed("fetching weather data", "boom"), List.last states)
+    Assert.Equal(Failed("pobieranie danych pogodowych", "boom"), List.last states)
 
 [<Fact>]
 let ``cancellation while awaiting magic link produces no terminal state`` () =

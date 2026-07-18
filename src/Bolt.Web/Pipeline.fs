@@ -12,10 +12,10 @@ open Bolt.Infrastrucutre.ces.OptionBuilder
 
 let describeProgress (p: ScrapeProgress) =
     match p with
-    | ScrapingProfile -> "driver profile"
-    | ScrapingActivityHours -> "activity hours"
-    | ScrapingOrderHistory -> "order history"
-    | ScrapingOrderDetails(current, total) -> $"order details {current}/{total}"
+    | ScrapingProfile -> "profil kierowcy"
+    | ScrapingActivityHours -> "godziny aktywności"
+    | ScrapingOrderHistory -> "historia zleceń"
+    | ScrapingOrderDetails(current, total) -> $"szczegóły zleceń {current}/{total}"
 
 #if DEBUG
 // Reading scraped data back from disk is a debugging convenience: production

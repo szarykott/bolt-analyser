@@ -19,10 +19,10 @@ th, td { border: 1px solid #ccc; padding: 0.3rem 0.7rem; text-align: left; }
 """
 
 let indexPage () =
-    html [ _lang "en" ] [
+    html [ _lang "pl" ] [
         head [] [
             meta [ _charset "utf-8" ]
-            title [] [ str "Bolt ride analysis" ]
+            title [] [ str "Analiza przejazdów Bolt" ]
             meta [ _name "viewport"; _content "width=device-width, initial-scale=1" ]
             script [ _src "https://unpkg.com/htmx.org@1.9.12" ] []
             script [ _src "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js" ] []
@@ -31,15 +31,15 @@ let indexPage () =
             style [] [ rawText css ]
         ]
         body [ attr "hx-ext" "ws"; attr "ws-connect" "/ws" ] [
-            h1 [] [ str "Bolt ride analysis" ]
+            h1 [] [ str "Analiza przejazdów Bolt" ]
             panel [
                 form [ flag "ws-send" ] [
                     input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
                     label [] [
-                        str "Bolt driver e-mail: "
-                        input [ _type "email"; _name "email"; _required; _placeholder "driver@example.com" ]
+                        str "Adres e-mail kierowcy Bolt: "
+                        input [ _type "email"; _name "email"; _required; _placeholder "kierowca@przyklad.pl" ]
                     ]
-                    button [ _type "submit" ] [ str "Make an analysis for me" ]
+                    button [ _type "submit" ] [ str "Przygotuj analizę" ]
                 ]
             ]
         ]
@@ -58,24 +58,24 @@ let magicLinkFragment (email: string) (error: string option) =
         error |> Option.map (fun e -> p [ _class "error" ] [ str e ]) |> Option.toList
 
     panel [
-        yield p [] [ str "Check your e-mail for a login message from Bolt, then paste the link from it below." ]
+        yield p [] [ str "Sprawdź swoją skrzynkę — Bolt wysłał wiadomość z linkiem do logowania. Wklej ten link poniżej." ]
         yield! errorNode
         yield form [ flag "ws-send" ] [
             input [ _type "hidden"; _name "msgType"; _value "magic-link" ]
             input [ _type "hidden"; _name "email"; _value email ]
-            label [] [ str "Magic link URL: "; input [ _type "text"; _name "url"; _required ] ]
-            button [ _type "submit" ] [ str "Log in" ]
+            label [] [ str "Link z wiadomości: "; input [ _type "text"; _name "url"; _required ] ]
+            button [ _type "submit" ] [ str "Zaloguj się" ]
         ]
     ]
     |> render
 
 let errorFragment (email: string) (step: string) (message: string) =
     panel [
-        p [ _class "error" ] [ str $"Analysis failed at {step}: {message}" ]
+        p [ _class "error" ] [ str $"Analiza nie powiodła się na etapie: {step}. {message}" ]
         form [ flag "ws-send" ] [
             input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
             input [ _type "hidden"; _name "email"; _value email ]
-            button [ _type "submit" ] [ str "Retry" ]
+            button [ _type "submit" ] [ str "Spróbuj ponownie" ]
         ]
     ]
     |> render
@@ -112,17 +112,17 @@ let reportFragment (report: AnalysisReport) =
     let fromDate, toDate = report.DateRange
 
     let header = [
-        h1 [] [ str $"Bolt ride analysis — {report.Email}" ]
+        h1 [] [ str $"Analiza przejazdów Bolt — {report.Email}" ]
         p [] [
             str (
-                $"""{report.RideCount} rides between {fromDate.ToString "yyyy-MM-dd"} and {toDate.ToString "yyyy-MM-dd"}, """
-                + $"""generated {report.GeneratedAt.ToString "yyyy-MM-dd HH:mm"} UTC."""
+                $"""{report.RideCount} przejazdów między {fromDate.ToString "yyyy-MM-dd"} a {toDate.ToString "yyyy-MM-dd"}, """
+                + $"""raport wygenerowano {report.GeneratedAt.ToString "yyyy-MM-dd HH:mm"} UTC."""
             )
         ]
     ]
 
     panel [
         div [ _id "report-content" ] (header @ (report.Sections |> List.map sectionNode))
-        button [ _onclick "downloadReport()" ] [ str "Download report" ]
+        button [ _onclick "downloadReport()" ] [ str "Pobierz raport" ]
     ]
     |> render
