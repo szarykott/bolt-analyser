@@ -4,7 +4,7 @@
 
 The web report (Bolt ride analysis) is noisy. The user cares about two results only: the price-per-ride OLS regression and the ride clustering. Today the report renders three sections — "Ride statistics" (PerRide1), "Price regression" (PerRide2, four raw statistical tables), "Pickup clusters" — all in English. The regression dumps every coefficient (significant or not, unsorted, 7 columns) plus VIF and group-means diagnostics that mean nothing to the end user. The site targets Polish users, so the whole web UI must be in Polish.
 
-**Constraint: display-only change.** The python analytics service and the OLS/clustering computation style stay untouched. All shaping happens where display tables are built (F# section builders) and in `Views.fs`.
+**Constraint: display-only change.** The python analytics service and the OLS/clustering computation style stay untouched. All shaping happens where display tables are built (F# section builders) and in `Views.fs`. One data-shape exception, requested explicitly: the column names (and temperature-bucket values) sent to the analytics service become Polish, so coefficient names return Polish without any display-side mapping. The computation itself is unaffected.
 
 ## Decisions (confirmed during brainstorming)
 
@@ -13,12 +13,12 @@ The web report (Bolt ride analysis) is noisy. The user cares about two results o
 - Coefficients table: only statistically significant rows (p < 0.05), intercept (`const`) excluded, sorted by |coef| descending. Insignificant features listed by (Polish) name in one sentence below the table.
 - Columns: `cecha | współczynnik [zł] | przedział ufności 95% | istotność (p)` (CI as one "od–do" column). Drop std err and t.
 - Column explanations: always-visible legend under the table (definition list), not tooltips.
-- Whole UI in Polish, `lang="pl"`, regression feature names mapped to friendly Polish labels.
+- Whole UI in Polish, `lang="pl"`. Regression feature names are Polish at the source: `toAnalyticsRows` emits Polish column keys (and Polish temperature-bucket values), so the OLS response returns Polish coefficient names — no display-side mapping dictionary.
 - Numbers displayed with Polish decimal comma (`pl-PL` culture); p-values shown as `< 0,001` when tiny, else 3 decimals; coefficients 2 decimals.
 
 ## Interpretation facts
 
-Verified in `python-analytics/analytics/core/regression.py`: target `price_pln` is NOT standardized, only numeric features are (here: `distance_km` only; bools and dummies stay 0/1). So every coefficient is in PLN; distance's coefficient is PLN per 1 standard deviation of distance; bool/dummy coefficients are PLN difference vs. the baseline category. The legend must say this.
+Verified in `python-analytics/analytics/core/regression.py`: the target (`cena_pln`) is NOT standardized, only numeric features are (here: `dystans_km` only; bools and dummies stay 0/1). So every coefficient is in PLN; distance's coefficient is PLN per 1 standard deviation of distance; bool/dummy coefficients are PLN difference vs. the baseline category. Categoricals are one-hot encoded with `pd.get_dummies(drop_first=True)` — pandas `column_value` names, alphabetically first category dropped as baseline. The legend must say this.
 
 ## Changes by file
 
@@ -26,17 +26,15 @@ Verified in `python-analytics/analytics/core/regression.py`: target `price_pln` 
 Add `Notes: string list` to `ResultTable` (legend lines rendered under the table). All existing table constructions get `Notes = []` unless stated below.
 
 ### `src/Bolt.ETL/Analysis/PerRide2.fs`
-- Add a feature-name mapper (model name → Polish label):
-  - `distance_km` → `dystans (na 1 odch. std.)`
-  - `is_rush_hour` → `godziny szczytu`, `is_weekend` → `weekend`
-  - `rain` → `deszcz`, `snow` → `śnieg`
-  - `pickup_district[T.x]` → `dzielnica: x` (district values are already Polish)
-  - `temperature_bucket[T.x]` → `temperatura: <bucket>` with buckets (`TemperatureBucket` in `src/Bolt.ETL/Meteo/Model.fs`): `Frost` → `mróz (≤ 0 °C)`, `Cold` → `zimno (0–15 °C)`, `Mild` → `umiarkowanie (15–25 °C)`, `Hot` → `gorąco (> 25 °C)`
-  - unknown names pass through unchanged (defensive).
+- Polish names at the source, in `toAnalyticsRows` (no display-side name mapper):
+  - column keys: `price_pln` → `cena_pln`, `distance_km` → `dystans_km`, `is_rush_hour` → `godziny_szczytu`, `is_weekend` → `weekend`, `rain` → `deszcz`, `snow` → `śnieg`, `pickup_district` → `dzielnica` (district values already Polish), `temperature_bucket` → `temperatura`;
+  - temperature values Polish via a `TemperatureBucket → string` function (`src/Bolt.ETL/Meteo/Model.fs` cases): `Frost` → `mróz`, `Cold` → `zimno`, `Mild` → `umiarkowanie`, `Hot` → `gorąco`;
+  - OLS request `Target = "cena_pln"`.
+  - The service one-hot encodes via `pd.get_dummies` (pandas `column_value` naming, unicode-safe), so coefficient names come back as e.g. `dystans_km`, `dzielnica_centrum`, `temperatura_mróz` and are displayed as returned.
 - Rewrite `coefficientsTable`:
   - exclude `const`; partition by `PValue < 0.05` (treat `None` p-value as insignificant);
   - significant rows sorted by `abs Coef` descending; 4 columns as decided; CI as `od–do` string;
-  - `Notes`: one line per column explaining meaning + how to read it, the standardization/PLN interpretation note, and the sentence `Cechy statystycznie nieistotne (p ≥ 0,05): …` (or a "none" variant when all are significant).
+  - `Notes`: one line per column explaining meaning + how to read it, the standardization/PLN interpretation note (incl. that `dzielnica_…` / `temperatura_…` rows are differences vs. the omitted baseline category), and the sentence `Cechy statystycznie nieistotne (p ≥ 0,05): …` (or a "none" variant when all are significant).
 - Rewrite `modelStatsTable` → model fit table: `liczba przejazdów`, `R²`, `skorygowane R²`; note translating R² to plain Polish ("model wyjaśnia X% zmienności ceny").
 - Delete `vifTable` and `groupMeansTable`; in `buildSection` drop the `AnalyticsClient.mirrorCheck` call; section returns the two tables. Title `Regresja ceny przejazdu`, Polish description.
 - Number formatting via `CultureInfo("pl-PL")` for display values (existing `fmtOpt` reworked; `–` placeholder for missing stays).
@@ -55,7 +53,7 @@ Strings only, logic untouched: section title `Skupiska odbiorów pasażerów`, P
 - Check callers of `progressFragment` (`Pipeline.fs` / `WebSockets.fs`) for English state/detail strings reaching the UI — translate those call-site strings too (display strings only).
 
 ### Tests
-- `tests/Bolt.ETL.Tests/PerRide2.Tests.fs`: rewrite for new behavior — filtering by p, |coef| sort order, intercept exclusion, Polish name mapping, insignificant-features note, model-fit table content; delete VIF/group-means tests.
+- `tests/Bolt.ETL.Tests/PerRide2.Tests.fs`: rewrite for new behavior — Polish column keys and bucket values in `toAnalyticsRows`, filtering by p, |coef| sort order, intercept exclusion, insignificant-features note, model-fit table content; delete VIF/group-means tests.
 - `tests/Bolt.Web.Tests/Views.Tests.fs`: update expected strings (Polish), add Notes-rendering assertion.
 - `tests/Bolt.ETL.Tests/RideClustering.Tests.fs`: update expected strings.
 
