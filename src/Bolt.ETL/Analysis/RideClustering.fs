@@ -42,8 +42,8 @@ module RideClustering =
         })
 
     let clusterTable (response: StDbscanResponse) : ResultTable =
-        { Title = $"Clusters (points: {response.NPoints}, noise: {response.NNoise})"
-          Headers = [ "cluster"; "size"; "centroid lat"; "centroid lon"; "mean hour" ]
+        { Title = $"Skupiska (punkty: {response.NPoints}, poza skupiskami: {response.NNoise})"
+          Headers = [ "skupisko"; "liczba przejazdów"; "szer. geogr."; "dł. geogr."; "średnia godzina" ]
           Rows =
             response.Clusters
             |> Array.sortByDescending _.Size
@@ -76,8 +76,8 @@ module RideClustering =
 
             return
                 { Id = "ride-clusters"
-                  Title = "Pickup clusters"
-                  Description = "Spatio-temporal clusters (ST-DBSCAN) of ride pickup locations."
-                  Charts = [ { Title = "Pickup cluster map"; PlotlyFigureJson = GenericChart.toFigureJson chart } ]
+                  Title = "Skupiska odbiorów pasażerów"
+                  Description = "Przestrzenno-czasowe skupiska (ST-DBSCAN) miejsc odbioru pasażerów."
+                  Charts = [ { Title = "Mapa skupisk odbiorów"; PlotlyFigureJson = GenericChart.toFigureJson chart } ]
                   Tables = [ clusterTable response ] }
         }

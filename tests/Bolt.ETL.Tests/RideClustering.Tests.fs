@@ -19,4 +19,7 @@ let ``clusterTable sorts by size descending and formats invariantly`` () =
     let table = RideClustering.clusterTable canned
     Assert.Equal<string list>([ "1"; "5"; "50.07000"; "19.95000"; "22.25" ], table.Rows[0])
     Assert.Equal<string list>([ "0"; "2"; "50.06123"; "19.92345"; "8.50" ], table.Rows[1])
-    Assert.Contains("noise: 1", table.Title)
+    Assert.Contains("poza skupiskami: 1", table.Title)
+    Assert.Equal<string list>(
+        [ "skupisko"; "liczba przejazdów"; "szer. geogr."; "dł. geogr."; "średnia godzina" ],
+        table.Headers)
