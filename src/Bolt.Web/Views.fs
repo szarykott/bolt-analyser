@@ -4,9 +4,6 @@ open System.Net
 open Bolt.ETL.Analysis
 open Giraffe.ViewEngine
 
-// Still used by the string-based report helpers; deleted in Task 2.
-let escape (s: string) = WebUtility.HtmlEncode s
-
 // Giraffe.ViewEngine encodes text nodes (str), but renders attribute
 // values raw — user-controlled attribute values go through here.
 let private escapeAttr (s: string) = WebUtility.HtmlEncode s
@@ -84,44 +81,47 @@ let errorFragment (email: string) (step: string) (message: string) =
     ]
     |> render
 
-let private tableHtml (t: ResultTable) =
-    let ths = t.Headers |> List.map (fun h -> $"<th>{escape h}</th>") |> String.concat ""
+let private tableNodes (t: ResultTable) = [
+    h4 [] [ str t.Title ]
+    table [] [
+        thead [] [ tr [] [ for h in t.Headers -> th [] [ str h ] ] ]
+        tbody [] [ for r in t.Rows -> tr [] [ for c in r -> td [] [ str c ] ] ]
+    ]
+]
 
-    let rows =
-        t.Rows
-        |> List.map (fun r ->
-            "<tr>" + (r |> List.map (fun c -> $"<td>{escape c}</td>") |> String.concat "") + "</tr>")
-        |> String.concat "\n"
-
-    $"""<h4>{escape t.Title}</h4><table><thead><tr>{ths}</tr></thead><tbody>{rows}</tbody></table>"""
-
-let private chartHtml (sectionId: string) (index: int) (c: ResultChart) =
+let private chartNodes (sectionId: string) (index: int) (c: ResultChart) =
     let chartId = $"chart-{sectionId}-{index}"
 
-    $"""<h4>{escape c.Title}</h4>
-<div id="{chartId}" style="width:100%%;height:800px"></div>
-<script type="application/json" data-plotly-target="{chartId}">{scriptSafeJson c.PlotlyFigureJson}</script>"""
+    [
+        h4 [] [ str c.Title ]
+        div [ _id chartId; _style "width:100%;height:800px" ] []
+        script [ _type "application/json"; attr "data-plotly-target" chartId ] [
+            rawText (scriptSafeJson c.PlotlyFigureJson)
+        ]
+    ]
 
-let private sectionHtml (s: AnalysisSection) =
-    let charts = s.Charts |> List.mapi (chartHtml s.Id) |> String.concat "\n"
-    let tables = s.Tables |> List.map tableHtml |> String.concat "\n"
+let private sectionNode (s: AnalysisSection) =
+    let charts = s.Charts |> List.mapi (chartNodes s.Id) |> List.concat
+    let tables = s.Tables |> List.collect tableNodes
 
-    $"""<section id="{s.Id}">
-<h2>{escape s.Title}</h2>
-<p>{escape s.Description}</p>
-{charts}
-{tables}
-</section>"""
+    section [ _id s.Id ]
+        ([ h2 [] [ str s.Title ]; p [] [ str s.Description ] ] @ charts @ tables)
 
 let reportFragment (report: AnalysisReport) =
-    let sections = report.Sections |> List.map sectionHtml |> String.concat "\n"
     let fromDate, toDate = report.DateRange
 
-    $"""<div id="panel">
-<div id="report-content">
-<h1>Bolt ride analysis — {escape report.Email}</h1>
-<p>{report.RideCount} rides between {fromDate.ToString "yyyy-MM-dd"} and {toDate.ToString "yyyy-MM-dd"}, generated {report.GeneratedAt.ToString "yyyy-MM-dd HH:mm"} UTC.</p>
-{sections}
-</div>
-<button onclick="downloadReport()">Download report</button>
-</div>"""
+    let header = [
+        h1 [] [ str $"Bolt ride analysis — {report.Email}" ]
+        p [] [
+            str (
+                $"""{report.RideCount} rides between {fromDate.ToString "yyyy-MM-dd"} and {toDate.ToString "yyyy-MM-dd"}, """
+                + $"""generated {report.GeneratedAt.ToString "yyyy-MM-dd HH:mm"} UTC."""
+            )
+        ]
+    ]
+
+    panel [
+        div [ _id "report-content" ] (header @ (report.Sections |> List.map sectionNode))
+        button [ _onclick "downloadReport()" ] [ str "Download report" ]
+    ]
+    |> render
