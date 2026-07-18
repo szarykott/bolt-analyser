@@ -16,7 +16,7 @@
 - Public signatures unchanged: `indexPage: unit -> string`, `progressFragment: string -> string -> string`, `magicLinkFragment: string -> string option -> string`, `errorFragment: string -> string -> string -> string`, `reportFragment: AnalysisReport -> string`.
 - Every fragment's root element renders as `<div id="panel">` (htmx swap target).
 - Plotly figure JSON is embedded raw (`rawText`) but passed through `scriptSafeJson` (`</` → `<\/`).
-- **Giraffe.ViewEngine gotcha:** `str` HTML-encodes text nodes, but attribute values are rendered raw. Any user-controlled attribute value (the email in hidden inputs) must go through `escapeAttr` (= `WebUtility.HtmlEncode`).
+- **Giraffe.ViewEngine 1.4.0:** HTML-encodes both text nodes (`str`) and attribute values. No manual escaping needed anywhere (verified empirically in final review).
 - Do not weaken existing test assertions; only adjust them if rendering formatting genuinely differs while semantics hold.
 - Commit messages end with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 

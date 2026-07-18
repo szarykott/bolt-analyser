@@ -63,3 +63,9 @@ let ``index page wires htmx websocket and panel`` () =
     Assert.Contains("<div id=\"panel\">", html)
     Assert.Contains("start-analysis", html)
     Assert.Contains("/app.js", html)
+
+[<Fact>]
+let ``email attribute is single-encoded by the view engine`` () =
+    let html = Views.magicLinkFragment "a&b@x.pl" None
+    Assert.Contains("value=\"a&amp;b@x.pl\"", html)
+    Assert.DoesNotContain("a&amp;amp;b", html)

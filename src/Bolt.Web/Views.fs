@@ -1,12 +1,7 @@
 module Bolt.Web.Views
 
-open System.Net
 open Bolt.ETL.Analysis
 open Giraffe.ViewEngine
-
-// Giraffe.ViewEngine encodes text nodes (str), but renders attribute
-// values raw — user-controlled attribute values go through here.
-let private escapeAttr (s: string) = WebUtility.HtmlEncode s
 
 // JSON that lands inside a <script> block must not terminate it early.
 let private scriptSafeJson (json: string) = json.Replace("</", "<\\/")
@@ -66,7 +61,7 @@ let magicLinkFragment (email: string) (error: string option) =
         yield! errorNode
         yield form [ flag "ws-send" ] [
             input [ _type "hidden"; _name "msgType"; _value "magic-link" ]
-            input [ _type "hidden"; _name "email"; _value (escapeAttr email) ]
+            input [ _type "hidden"; _name "email"; _value email ]
             label [] [ str "Magic link URL: "; input [ _type "text"; _name "url"; _required ] ]
             button [ _type "submit" ] [ str "Log in" ]
         ]
@@ -78,7 +73,7 @@ let errorFragment (email: string) (step: string) (message: string) =
         p [ _class "error" ] [ str $"Analysis failed at {step}: {message}" ]
         form [ flag "ws-send" ] [
             input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
-            input [ _type "hidden"; _name "email"; _value (escapeAttr email) ]
+            input [ _type "hidden"; _name "email"; _value email ]
             button [ _type "submit" ] [ str "Retry" ]
         ]
     ]
