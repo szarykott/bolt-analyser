@@ -112,52 +112,76 @@ module PerRide2 =
                 "temperature_bucket", box (r.Temperature.ToString())
             ])
 
-    let private fmtOpt (v: float option) =
-        v
-        |> Option.map (fun x -> x.ToString("F4", CultureInfo.InvariantCulture))
-        |> Option.defaultValue "–"
+    let private pl = CultureInfo.GetCultureInfo "pl-PL"
+
+    let private fmt2 (v: float) = v.ToString("F2", pl)
+
+    let private fmt2Opt (v: float option) =
+        v |> Option.map fmt2 |> Option.defaultValue "–"
+
+    let private fmtPValue (p: float option) =
+        match p with
+        | Some p when p < 0.001 -> "< 0,001"
+        | Some p -> p.ToString("F3", pl)
+        | None -> "–"
+
+    let private isSignificant (c: Coefficient) =
+        match c.PValue with
+        | Some p -> p < 0.05
+        | None -> false
 
     let coefficientsTable (response: OlsResponse) : ResultTable =
-        { Title = "OLS coefficients (target: price_pln)"
-          Headers = [ "feature"; "coef"; "std err"; "t"; "p-value"; "ci low"; "ci high" ]
-          Rows =
-            response.Coefficients
+        let features =
+            response.Coefficients |> Array.filter (fun c -> c.Name <> "const")
+
+        let significant, insignificant = features |> Array.partition isSignificant
+
+        let rows =
+            significant
+            |> Array.sortByDescending (fun c -> c.Coef |> Option.map abs |> Option.defaultValue 0.0)
             |> Array.map (fun c ->
-                [ c.Name; fmtOpt c.Coef; fmtOpt c.StdErr; fmtOpt c.TValue
-                  fmtOpt c.PValue; fmtOpt c.CiLow; fmtOpt c.CiHigh ])
+                [ c.Name
+                  fmt2Opt c.Coef
+                  (match c.CiLow, c.CiHigh with
+                   | Some lo, Some hi -> $"od {fmt2 lo} do {fmt2 hi}"
+                   | _ -> "–")
+                  fmtPValue c.PValue ])
             |> List.ofArray
-          Notes = [] }
+
+        let insignificantNote =
+            if Array.isEmpty insignificant then
+                "Wszystkie cechy modelu są istotne statystycznie (p < 0,05)."
+            else
+                let names = insignificant |> Array.map _.Name |> String.concat ", "
+                $"Cechy statystycznie nieistotne (p ≥ 0,05), pominięte w tabeli: {names}."
+
+        { Title = "Wpływ cech na cenę przejazdu"
+          Headers = [ "cecha"; "współczynnik [zł]"; "przedział ufności 95%"; "istotność (p)" ]
+          Rows = rows
+          Notes =
+            [ "cecha — zmienna wpływająca na cenę; nazwy w formie dzielnica_… lub temperatura_… oznaczają różnicę względem pominiętej kategorii bazowej."
+              "współczynnik [zł] — o ile złotych zmienia się cena przejazdu, gdy dana cecha występuje (dla dystansu: przy wzroście o 1 odchylenie standardowe); im większa wartość bezwzględna, tym silniejszy wpływ; wiersze są posortowane od najsilniejszego wpływu."
+              "przedział ufności 95% — zakres, w którym z 95-procentową pewnością mieści się prawdziwa wartość współczynnika."
+              "istotność (p) — prawdopodobieństwo, że tak silny efekt pojawiłby się przypadkiem; wartości poniżej 0,05 uznaje się za istotne statystycznie."
+              insignificantNote ] }
 
     let modelStatsTable (response: OlsResponse) : ResultTable =
-        { Title = "Model statistics"
-          Headers = [ "statistic"; "value" ]
-          Rows =
-            [ [ "observations"; string response.NObservations ]
-              [ "R²"; fmtOpt response.RSquared ]
-              [ "adjusted R²"; fmtOpt response.AdjRSquared ]
-              [ "F statistic"; fmtOpt response.FStatistic ]
-              [ "F p-value"; fmtOpt response.FPvalue ] ]
-          Notes = [] }
+        let fitNote =
+            match response.RSquared with
+            | Some r2 ->
+                let pct = int (Math.Round(r2 * 100.0))
+                [ $"Model wyjaśnia {pct}%% zmienności ceny przejazdu." ]
+            | None -> []
 
-    let vifTable (response: MirrorCheckResponse) : ResultTable =
-        { Title = "Variance inflation factors"
-          Headers = [ "feature"; "VIF" ]
+        { Title = "Dopasowanie modelu"
+          Headers = [ "statystyka"; "wartość" ]
           Rows =
-            response.Vif
-            |> Array.map (fun v -> [ v.Feature; fmtOpt v.Vif ])
-            |> List.ofArray
-          Notes = [] }
-
-    let groupMeansTable (response: MirrorCheckResponse) : ResultTable option =
-        response.GroupMeans
-        |> Option.map (fun groupMeans ->
-            { Title = "Mean distance by district"
-              Headers = [ "district"; "mean distance [km]" ]
-              Rows =
-                groupMeans
-                |> Array.map (fun g -> [ g.Group; fmtOpt g.Mean ])
-                |> List.ofArray
-              Notes = [] })
+            [ [ "liczba przejazdów"; string response.NObservations ]
+              [ "R²"; fmt2Opt response.RSquared ]
+              [ "skorygowane R²"; fmt2Opt response.AdjRSquared ] ]
+          Notes =
+            fitNote
+            @ [ "R² — jaka część zmienności ceny jest wyjaśniona przez model (od 0 do 1, wyżej = lepiej); skorygowane R² dodatkowo uwzględnia liczbę cech w modelu." ] }
 
     let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
         task {
@@ -170,21 +194,12 @@ module PerRide2 =
                     Standardize = true
                 }
 
-            let! mirror =
-                AnalyticsClient.mirrorCheck {
-                    Rows = toAnalyticsRows source
-                    TargetColumns = [| "price_pln" |]
-                    GroupMeans = Some { By = "pickup_district"; Value = "distance_km" }
-                }
-
             return
                 { Id = "price-regression"
-                  Title = "Price regression"
-                  Description = "OLS regression of ride price against distance, time and weather, with multicollinearity diagnostics."
+                  Title = "Regresja ceny przejazdu"
+                  Description =
+                    "Regresja liniowa (OLS) ceny przejazdu względem dystansu, pory dnia i pogody. "
+                    + "W tabeli pokazane są wyłącznie cechy istotne statystycznie."
                   Charts = []
-                  Tables =
-                    [ yield coefficientsTable ols
-                      yield modelStatsTable ols
-                      yield vifTable mirror
-                      yield! groupMeansTable mirror |> Option.toList ] }
+                  Tables = [ coefficientsTable ols; modelStatsTable ols ] }
         }
