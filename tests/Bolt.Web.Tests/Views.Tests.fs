@@ -53,3 +53,13 @@ let ``script-bound json escapes closing tags`` () =
                 Tables = [] } ]
     }
     Assert.DoesNotContain("</script>\"}", Views.reportFragment report)
+
+[<Fact>]
+let ``index page wires htmx websocket and panel`` () =
+    let html = Views.indexPage ()
+    Assert.StartsWith("<!DOCTYPE html>", html)
+    Assert.Contains("hx-ext=\"ws\"", html)
+    Assert.Contains("ws-connect=\"/ws\"", html)
+    Assert.Contains("<div id=\"panel\">", html)
+    Assert.Contains("start-analysis", html)
+    Assert.Contains("/app.js", html)

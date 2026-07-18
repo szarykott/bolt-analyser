@@ -15,37 +15,40 @@ let private render = RenderView.AsString.htmlNode
 
 let private panel = div [ _id "panel" ]
 
-let private style = """
+let private css = """
 body { font-family: sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
 table { border-collapse: collapse; margin: 1rem 0; }
 th, td { border: 1px solid #ccc; padding: 0.3rem 0.7rem; text-align: left; }
 .error { color: #b00; }
 """
 
-let private indexBody = """
-<h1>Bolt ride analysis</h1>
-<div id="panel">
-  <form ws-send>
-    <input type="hidden" name="msgType" value="start-analysis">
-    <label>Bolt driver e-mail:
-      <input type="email" name="email" required placeholder="driver@example.com">
-    </label>
-    <button type="submit">Make an analysis for me</button>
-  </form>
-</div>
-"""
-
 let indexPage () =
-    "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Bolt ride analysis</title>\n"
-    + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-    + "<script src=\"https://unpkg.com/htmx.org@1.9.12\"></script>\n"
-    + "<script src=\"https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js\"></script>\n"
-    + "<script src=\"https://cdn.plot.ly/plotly-2.32.0.min.js\"></script>\n"
-    + "<script src=\"/app.js\"></script>\n"
-    + $"<style>{style}</style>\n</head>\n"
-    + "<body hx-ext=\"ws\" ws-connect=\"/ws\">\n"
-    + indexBody
-    + "\n</body>\n</html>"
+    html [ _lang "en" ] [
+        head [] [
+            meta [ _charset "utf-8" ]
+            title [] [ str "Bolt ride analysis" ]
+            meta [ _name "viewport"; _content "width=device-width, initial-scale=1" ]
+            script [ _src "https://unpkg.com/htmx.org@1.9.12" ] []
+            script [ _src "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js" ] []
+            script [ _src "https://cdn.plot.ly/plotly-2.32.0.min.js" ] []
+            script [ _src "/app.js" ] []
+            style [] [ rawText css ]
+        ]
+        body [ attr "hx-ext" "ws"; attr "ws-connect" "/ws" ] [
+            h1 [] [ str "Bolt ride analysis" ]
+            panel [
+                form [ flag "ws-send" ] [
+                    input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
+                    label [] [
+                        str "Bolt driver e-mail: "
+                        input [ _type "email"; _name "email"; _required; _placeholder "driver@example.com" ]
+                    ]
+                    button [ _type "submit" ] [ str "Make an analysis for me" ]
+                ]
+            ]
+        ]
+    ]
+    |> RenderView.AsString.htmlDocument
 
 let progressFragment (stateText: string) (detail: string) =
     panel [
