@@ -1,12 +1,22 @@
 module Bolt.Web.Views
 
-open System
+open System.Net
 open Bolt.ETL.Analysis
+open Giraffe.ViewEngine
 
-let escape (s: string) = System.Net.WebUtility.HtmlEncode s
+// Still used by the string-based report helpers; deleted in Task 2.
+let escape (s: string) = WebUtility.HtmlEncode s
+
+// Giraffe.ViewEngine encodes text nodes (str), but renders attribute
+// values raw — user-controlled attribute values go through here.
+let private escapeAttr (s: string) = WebUtility.HtmlEncode s
 
 // JSON that lands inside a <script> block must not terminate it early.
 let private scriptSafeJson (json: string) = json.Replace("</", "<\\/")
+
+let private render = RenderView.AsString.htmlNode
+
+let private panel = div [ _id "panel" ]
 
 let private style = """
 body { font-family: sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
@@ -41,34 +51,38 @@ let indexPage () =
     + "\n</body>\n</html>"
 
 let progressFragment (stateText: string) (detail: string) =
-    $"""<div id="panel"><p><strong>{escape stateText}</strong> {escape detail}</p><progress></progress></div>"""
+    panel [
+        p [] [ strong [] [ str stateText ]; str (" " + detail) ]
+        progress [] []
+    ]
+    |> render
 
 let magicLinkFragment (email: string) (error: string option) =
-    let errorHtml =
-        error
-        |> Option.map (fun e -> $"""<p class="error">{escape e}</p>""")
-        |> Option.defaultValue ""
+    let errorNode =
+        error |> Option.map (fun e -> p [ _class "error" ] [ str e ]) |> Option.toList
 
-    $"""<div id="panel">
-<p>Check your e-mail for a login message from Bolt, then paste the link from it below.</p>
-{errorHtml}
-<form ws-send>
-  <input type="hidden" name="msgType" value="magic-link">
-  <input type="hidden" name="email" value="{escape email}">
-  <label>Magic link URL: <input type="text" name="url" required></label>
-  <button type="submit">Log in</button>
-</form>
-</div>"""
+    panel [
+        yield p [] [ str "Check your e-mail for a login message from Bolt, then paste the link from it below." ]
+        yield! errorNode
+        yield form [ flag "ws-send" ] [
+            input [ _type "hidden"; _name "msgType"; _value "magic-link" ]
+            input [ _type "hidden"; _name "email"; _value (escapeAttr email) ]
+            label [] [ str "Magic link URL: "; input [ _type "text"; _name "url"; _required ] ]
+            button [ _type "submit" ] [ str "Log in" ]
+        ]
+    ]
+    |> render
 
 let errorFragment (email: string) (step: string) (message: string) =
-    $"""<div id="panel">
-<p class="error">Analysis failed at {escape step}: {escape message}</p>
-<form ws-send>
-  <input type="hidden" name="msgType" value="start-analysis">
-  <input type="hidden" name="email" value="{escape email}">
-  <button type="submit">Retry</button>
-</form>
-</div>"""
+    panel [
+        p [ _class "error" ] [ str $"Analysis failed at {step}: {message}" ]
+        form [ flag "ws-send" ] [
+            input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
+            input [ _type "hidden"; _name "email"; _value (escapeAttr email) ]
+            button [ _type "submit" ] [ str "Retry" ]
+        ]
+    ]
+    |> render
 
 let private tableHtml (t: ResultTable) =
     let ths = t.Headers |> List.map (fun h -> $"<th>{escape h}</th>") |> String.concat ""
