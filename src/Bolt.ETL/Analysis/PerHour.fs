@@ -283,10 +283,17 @@ module PerHour =
         let isUnlocked (rows: HourRow array) (rung: Rung) =
             float rows.Length >= RowsPerCoefficient * float (rung.Columns.Length + 1)
 
+        /// Drops rungs with no columns (intercept-only regression is meaningless)
+        /// and, among rungs sharing an identical column-name list, keeps only
+        /// the highest level — ascending order preserved.
         let unlockedRungs (rows: HourRow array) : Rung list =
             [ 1 .. 4 ]
             |> List.map (rungColumns rows)
+            |> List.filter (fun r -> not (List.isEmpty r.Columns))
             |> List.filter (isUnlocked rows)
+            |> List.rev
+            |> List.distinctBy (fun r -> r.Columns |> List.map _.Name)
+            |> List.rev
 
     let private pl = CultureInfo.GetCultureInfo "pl-PL"
     let private fmt2 (v: float) = v.ToString("F2", pl)

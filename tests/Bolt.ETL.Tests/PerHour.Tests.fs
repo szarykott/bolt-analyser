@@ -244,6 +244,38 @@ let ``unlockedRungs returns rungs in order`` () =
         rungs |> List.map _.Level)
 
 [<Fact>]
+let ``unlockedRungs excludes rungs with no columns`` () =
+    // 20 weekday, no-rain, mild, centrum-only rows: n >= 15 passes the gate
+    // at every level, but weekend/rush/badWeather/night/extremeTemp/pozaCentrum
+    // all have zero exposure and districts is centrum-only → every rung's
+    // Columns is empty. None should surface.
+    let rows = centrumRows 20
+    Assert.Empty(PerHour.Ladder.unlockedRungs rows)
+
+[<Fact>]
+let ``unlockedRungs dedupes identical adjacent column sets keeping the higher level`` () =
+    // weekend rows: only source of "weekend" exposure.
+    // rain-only rows: badWeather passes (25), but snow stays at 0 so the
+    // rain/snow split never both clear the floor → merged "zła_pogoda" at
+    // every level that can split it.
+    // frost + hot rows: both clear the floor alone (25 each) → extremeTemp
+    // merged at rungs 2/3 (which never split by frost/hot), but splits into
+    // separate frost/hot columns at rung 4.
+    // Net effect: rung1 = [weekend; zła_pogoda] (unique),
+    // rung2 = rung3 = [weekend; zła_pogoda; ≤0°C LUB >30°C] (duplicate pair),
+    // rung4 = [weekend; zła_pogoda; ≤0°C; >30°C] (unique).
+    let rows =
+        Array.concat
+            [ Array.init 30 (fun _ -> { hourRow PerHour.BaselineDistrict Mild false false with IsWeekend = true })
+              Array.init 25 (fun _ -> hourRow PerHour.BaselineDistrict Mild true false)
+              Array.init 25 (fun _ -> hourRow PerHour.BaselineDistrict Frost false false)
+              Array.init 25 (fun _ -> hourRow PerHour.BaselineDistrict Hot false false) ]
+    let rungs = PerHour.Ladder.unlockedRungs rows
+    Assert.Equal<int list>([ 1; 3; 4 ], rungs |> List.map _.Level)
+    let columnSets = rungs |> List.map (fun r -> r.Columns |> List.map _.Name)
+    Assert.Equal<string list list>(columnSets, columnSets |> List.distinct)
+
+[<Fact>]
 let ``rung0 groups by weekend and night with fill weighted means`` () =
     // weekday-day: one full hour at 60 zł/h + one half hour at 120 zł/h
     // weighted mean = (60·1 + 120·0.5) / 1.5 = 80
