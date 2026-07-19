@@ -11,11 +11,12 @@ from analytics.api.models import (
     OlsResponse,
     StDbscanRequest,
     StDbscanResponse,
+    WlsRequest,
 )
 from analytics.core.clustering import run_st_dbscan
 from analytics.core.diagnostics import run_mirror_check
 from analytics.core.frames import to_dataframe
-from analytics.core.regression import run_ols
+from analytics.core.regression import run_ols, run_wls
 
 app = FastAPI(title="Bolt Analytics")
 
@@ -47,6 +48,16 @@ def cluster_st_dbscan(request: StDbscanRequest) -> StDbscanResponse:
 def regression_ols(request: OlsRequest) -> OlsResponse:
     df = to_dataframe(request.rows)
     result = run_ols(df, target=request.target, drop_columns=request.drop_columns,
+                     categorical_columns=request.categorical_columns,
+                     standardize=request.standardize)
+    return OlsResponse(**result)
+
+
+@app.post("/regression/wls")
+def regression_wls(request: WlsRequest) -> OlsResponse:
+    df = to_dataframe(request.rows)
+    result = run_wls(df, target=request.target, weights=request.weights,
+                     drop_columns=request.drop_columns,
                      categorical_columns=request.categorical_columns,
                      standardize=request.standardize)
     return OlsResponse(**result)

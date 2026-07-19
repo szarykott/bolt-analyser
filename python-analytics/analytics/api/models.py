@@ -44,6 +44,10 @@ class OlsRequest(BaseModel):
     standardize: bool = True
 
 
+class WlsRequest(OlsRequest):
+    weights: str  # required: name of the weights column inside rows
+
+
 class Coefficient(BaseModel):
     name: str
     coef: float | None
