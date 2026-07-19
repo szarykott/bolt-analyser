@@ -46,6 +46,17 @@ type OlsRequest = {
     [<JsonPropertyName "standardize">] Standardize: bool
 }
 
+/// Same shape as OlsRequest plus the required weights column name; posts to
+/// the separate /regression/wls endpoint (weights are never optional there).
+type WlsRequest = {
+    [<JsonPropertyName "rows">] Rows: Map<string, obj> array
+    [<JsonPropertyName "target">] Target: string
+    [<JsonPropertyName "weights">] Weights: string
+    [<JsonPropertyName "drop_columns">] DropColumns: string array
+    [<JsonPropertyName "categorical_columns">] CategoricalColumns: string array option
+    [<JsonPropertyName "standardize">] Standardize: bool
+}
+
 type Coefficient = {
     [<JsonPropertyName "name">] Name: string
     [<JsonPropertyName "coef">] Coef: float option

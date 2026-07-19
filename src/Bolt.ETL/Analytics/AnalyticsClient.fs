@@ -42,5 +42,8 @@ module AnalyticsClient =
     let olsRegression (request: OlsRequest) : Task<OlsResponse> =
         post "/regression/ols" request
 
+    let wlsRegression (request: WlsRequest) : Task<OlsResponse> =
+        post "/regression/wls" request
+
     let mirrorCheck (request: MirrorCheckRequest) : Task<MirrorCheckResponse> =
         post "/diagnostics/mirror-check" request
