@@ -99,8 +99,10 @@ module PerRide2 =
         match t with
         | Frost -> "mróz"
         | Cold -> "zimno"
+        | Cool -> "chłodno"
         | Mild -> "umiarkowanie"
-        | Hot -> "gorąco"
+        | Warm -> "ciepło"
+        | Hot -> "upał"
 
     // JSON rows for the analytics service. Column names are Polish on purpose:
     // pd.get_dummies builds coefficient names as "column_value", so Polish keys
