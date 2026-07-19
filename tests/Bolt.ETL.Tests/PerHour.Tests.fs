@@ -241,3 +241,25 @@ let ``unlockedRungs returns rungs in order`` () =
     Assert.Equal<int list>(
         rungs |> List.map _.Level |> List.sort,
         rungs |> List.map _.Level)
+
+[<Fact>]
+let ``rung0 groups by weekend and night with fill weighted means`` () =
+    // weekday-day: one full hour at 60 zł/h + one half hour at 120 zł/h
+    // weighted mean = (60·1 + 120·0.5) / 1.5 = 80
+    let rows =
+        [| { hourRow "A" Mild false false with Rate = 60.0 }
+           { hourRow "A" Mild false false with Rate = 120.0; Fill = 0.5 }
+           { hourRow "A" Mild false false with Rate = 40.0; IsWeekend = true; IsNight = true } |]
+    let table = PerHour.Rung0.table rows
+    Assert.Equal<string list>([ "kiedy"; "zł za godzinę"; "liczba godzin" ], table.Headers)
+    Assert.Contains<string list>([ "dzień roboczy, dzień"; "80,00"; "2" ], table.Rows)
+    Assert.Contains<string list>([ "weekend, noc"; "40,00"; "1" ], table.Rows)
+
+[<Fact>]
+let ``rung0 sorts groups by rate descending`` () =
+    let rows =
+        [| { hourRow "A" Mild false false with Rate = 30.0 }
+           { hourRow "A" Mild false false with Rate = 90.0; IsNight = true } |]
+    let table = PerHour.Rung0.table rows
+    Assert.Equal("dzień roboczy, noc", table.Rows[0][0])
+    Assert.Equal("dzień roboczy, dzień", table.Rows[1][0])

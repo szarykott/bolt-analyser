@@ -8,6 +8,7 @@ namespace Bolt.ETL.Analysis
 module PerHour =
 
     open System
+    open System.Globalization
     open Bolt.ETL.Geo
     open Bolt.ETL.Geo.DistrictAssignment
     open Bolt.ETL.Meteo.Model
@@ -284,3 +285,34 @@ module PerHour =
             [ 1 .. 4 ]
             |> List.map (rungColumns rows)
             |> List.filter (isUnlocked rows)
+
+    let private pl = CultureInfo.GetCultureInfo "pl-PL"
+    let private fmt2 (v: float) = v.ToString("F2", pl)
+    let private fmt2Opt (v: float option) =
+        v |> Option.map fmt2 |> Option.defaultValue "–"
+
+    /// Rung 0: weighted grouped means, always shown — no service call needed.
+    module Rung0 =
+
+        let private groupLabel (r: HourRow) =
+            let day = if r.IsWeekend then "weekend" else "dzień roboczy"
+            let time = if r.IsNight then "noc" else "dzień"
+            $"{day}, {time}"
+
+        let table (rows: HourRow array) : ResultTable =
+            let groups =
+                rows
+                |> Array.groupBy groupLabel
+                |> Array.map (fun (label, group) ->
+                    let effectiveHours = group |> Array.sumBy _.Fill
+                    let earnings = group |> Array.sumBy (fun r -> r.Rate * r.Fill)
+                    label, earnings / effectiveHours, group.Length)
+                |> Array.sortByDescending (fun (_, rate, _) -> rate)
+                |> Array.map (fun (label, rate, count) -> [ label; fmt2 rate; string count ])
+                |> List.ofArray
+            { Title = "Średnie zarobki na godzinę pracy"
+              Headers = [ "kiedy"; "zł za godzinę"; "liczba godzin" ]
+              Rows = groups
+              Notes =
+                [ "zł za godzinę — średnia ważona czasem pracy: godziny przepracowane w całości liczą się mocniej niż ledwie zaczęte."
+                  "liczba godzin — ile godzin zegarowych z jazdą wpadło do danej grupy." ] }
