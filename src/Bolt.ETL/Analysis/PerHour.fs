@@ -159,3 +159,128 @@ module PerHour =
             |> Option.defaultValue (DistrictName "unknown")
             |> _.Value
         { Rows = Dataset.buildRows weatherProvider districtOf rides }
+
+    /// A regression column: display-ready Polish name, value in [0,1] per row
+    /// (0/1 for dummies, share of the hour for district columns).
+    type ColumnSpec = {
+        Name: string
+        Value: HourRow -> float
+    }
+
+    /// Rows-per-coefficient budget for unlocking a rung.
+    let RowsPerCoefficient = 15.0
+
+    /// Minimum effective hours (Σ value·fill) for a column to stand alone.
+    let ExposureFloorHours = 20.0
+
+    module Ladder =
+
+        type Rung = {
+            Level: int
+            Columns: ColumnSpec list
+            /// Non-baseline districts folded into inne_dzielnice (rung 4 only).
+            FoldedDistricts: string array
+        }
+
+        let exposure (rows: HourRow array) (spec: ColumnSpec) : float =
+            rows |> Array.sumBy (fun r -> r.Fill * spec.Value r)
+
+        let private passesFloor rows spec = exposure rows spec >= ExposureFloorHours
+
+        let private dummy name (pred: HourRow -> bool) =
+            { Name = name; Value = fun r -> if pred r then 1.0 else 0.0 }
+
+        let private shareOf district (r: HourRow) =
+            r.Shares |> Map.tryFind district |> Option.defaultValue 0.0
+
+        let private weekend = dummy "weekend" _.IsWeekend
+        let private rushHour = dummy "godziny_szczytu" _.IsRushHour
+        let private night = dummy "noc" _.IsNight
+        let private badWeather = dummy "zła_pogoda" (fun r -> r.Rain || r.Snow)
+        let private rain = dummy "deszcz" _.Rain
+        let private snow = dummy "śnieg" _.Snow
+
+        let private tempIn buckets = fun (r: HourRow) -> List.contains r.Temperature buckets
+        let private extremeTemp = dummy "≤0°C LUB >30°C" (tempIn [ Frost; Hot ])
+        let private cold0to18 = dummy "0–18°C" (tempIn [ Cold; Cool ])
+        let private frost = dummy (TemperatureBucket.label Frost) (tempIn [ Frost ])
+        let private hot = dummy (TemperatureBucket.label Hot) (tempIn [ Hot ])
+        let private cold = dummy (TemperatureBucket.label Cold) (tempIn [ Cold ])
+        let private cool = dummy (TemperatureBucket.label Cool) (tempIn [ Cool ])
+        let private warm = dummy (TemperatureBucket.label Warm) (tempIn [ Warm ])
+
+        let private ifFloor rows col = if passesFloor rows col then [ col ] else []
+
+        /// A split replaces its merged parent only when both children stand
+        /// on their own; otherwise the parent column stays (floor permitting).
+        let private splitOrMerged rows (children: ColumnSpec list) (parent: ColumnSpec) =
+            if children |> List.forall (passesFloor rows)
+            then children
+            else ifFloor rows parent
+
+        let private pozaCentrum =
+            { Name = "poza_centrum"; Value = fun r -> 1.0 - shareOf BaselineDistrict r }
+
+        /// Catch-alls never block and take no floor — included whenever inhabited.
+        let private ifInhabited rows col = if exposure rows col > 0.0 then [ col ] else []
+
+        let private districtColumns (rows: HourRow array) =
+            let named =
+                rows
+                |> Array.collect (fun r -> r.Shares |> Map.toArray |> Array.map fst)
+                |> Array.distinct
+                |> Array.filter (fun d -> d <> BaselineDistrict)
+                |> Array.sort
+            let unlocked, folded =
+                named
+                |> Array.partition (fun d ->
+                    passesFloor rows { Name = d; Value = shareOf d })
+            let namedColumns =
+                unlocked
+                |> Array.map (fun d -> { Name = $"dzielnica_{d}"; Value = shareOf d })
+                |> List.ofArray
+            let otherColumn =
+                { Name = "inne_dzielnice"
+                  Value = fun r -> folded |> Array.sumBy (fun d -> shareOf d r) }
+            namedColumns @ ifInhabited rows otherColumn, folded
+
+        let rungColumns (rows: HourRow array) (level: int) : Rung =
+            let baseColumns = ifFloor rows weekend @ ifFloor rows rushHour
+            match level with
+            | 1 ->
+                { Level = 1
+                  Columns = baseColumns @ ifFloor rows badWeather
+                  FoldedDistricts = [||] }
+            | 2 ->
+                { Level = 2
+                  Columns =
+                    baseColumns @ ifFloor rows badWeather @ ifFloor rows night
+                    @ ifFloor rows extremeTemp @ ifInhabited rows pozaCentrum
+                  FoldedDistricts = [||] }
+            | 3 ->
+                { Level = 3
+                  Columns =
+                    baseColumns @ splitOrMerged rows [ rain; snow ] badWeather
+                    @ ifFloor rows night @ ifFloor rows extremeTemp
+                    @ ifFloor rows cold0to18 @ ifInhabited rows pozaCentrum
+                  FoldedDistricts = [||] }
+            | 4 ->
+                let districts, folded = districtColumns rows
+                { Level = 4
+                  Columns =
+                    baseColumns @ splitOrMerged rows [ rain; snow ] badWeather
+                    @ ifFloor rows night
+                    @ splitOrMerged rows [ frost; hot ] extremeTemp
+                    @ splitOrMerged rows [ cold; cool ] cold0to18
+                    @ ifFloor rows warm @ districts
+                  FoldedDistricts = folded }
+            | _ -> invalidArg (nameof level) "rung level must be 1..4"
+
+        /// Global budget gate: n ≥ 15 × (columns + intercept).
+        let isUnlocked (rows: HourRow array) (rung: Rung) =
+            float rows.Length >= RowsPerCoefficient * float (rung.Columns.Length + 1)
+
+        let unlockedRungs (rows: HourRow array) : Rung list =
+            [ 1 .. 4 ]
+            |> List.map (rungColumns rows)
+            |> List.filter (isUnlocked rows)

@@ -105,3 +105,139 @@ let ``hour flags come from hour start`` () =
     let morning = buildRows [| ride "2026-07-14T07:30:00+02:00" "2026-07-14T07:50:00+02:00" 20m "A" |]
     Assert.False(morning[0].IsNight)
     Assert.True(morning[0].IsRushHour)
+
+// Ladder tests
+open Bolt.ETL.Meteo.Model
+
+/// Hand-built hour row: full fill, Tuesday midday defaults, single district.
+let private hourRow (district: string) (temp: TemperatureBucket) (rain: bool) (snow: bool) : PerHour.HourRow =
+    { HourStart = DateTimeOffset.Parse "2026-07-14T12:00:00+02:00"
+      Fill = 1.0
+      Rate = 50.0
+      Shares = Map [ district, 1.0 ]
+      Rain = rain
+      Snow = snow
+      Temperature = temp
+      IsNight = false
+      IsWeekend = false
+      IsRushHour = false }
+
+let private centrumRows n = Array.init n (fun _ -> hourRow PerHour.BaselineDistrict Mild false false)
+
+[<Fact>]
+let ``exposure is fill weighted column value`` () =
+    let rows = [| { hourRow "A" Mild true false with Fill = 0.5 }
+                  hourRow "B" Mild false false |]
+    let rain : PerHour.ColumnSpec = { Name = "deszcz"
+                                      Value = fun r -> if r.Rain then 1.0 else 0.0 }
+    Assert.Equal(0.5, PerHour.Ladder.exposure rows rain, 6)
+
+[<Fact>]
+let ``rung1 keeps only columns passing the exposure floor`` () =
+    // 30 rainy weekend-flagged rows: weekend + zła_pogoda pass (30 ≥ 20),
+    // rush hour has zero exposure → omitted
+    let rows =
+        Array.init 30 (fun _ -> { hourRow "A" Mild true false with IsWeekend = true })
+    let rung = PerHour.Ladder.rungColumns rows 1
+    Assert.Equal<string list>(
+        [ "weekend"; "zła_pogoda" ],
+        rung.Columns |> List.map _.Name)
+
+[<Fact>]
+let ``weather split needs both children above floor`` () =
+    // 25 rain hours + 5 snow hours: split would leave śnieg at 5 < 20 → merged flag stays
+    let rows =
+        Array.append
+            (Array.init 25 (fun _ -> hourRow "A" Mild true false))
+            (Array.init 5 (fun _ -> hourRow "A" Mild false true))
+    let rung3 = PerHour.Ladder.rungColumns rows 3
+    let names = rung3.Columns |> List.map _.Name
+    Assert.Contains("zła_pogoda", names)
+    Assert.DoesNotContain("deszcz", names)
+    Assert.DoesNotContain("śnieg", names)
+    // 25 + 25: both pass → split
+    let rows' =
+        Array.append
+            (Array.init 25 (fun _ -> hourRow "A" Mild true false))
+            (Array.init 25 (fun _ -> hourRow "A" Mild false true))
+    let names' = (PerHour.Ladder.rungColumns rows' 3).Columns |> List.map _.Name
+    Assert.Contains("deszcz", names')
+    Assert.Contains("śnieg", names')
+    Assert.DoesNotContain("zła_pogoda", names')
+
+[<Fact>]
+let ``centrum only driver gets no district columns at rung 4`` () =
+    let rung = PerHour.Ladder.rungColumns (centrumRows 100) 4
+    let names = rung.Columns |> List.map _.Name
+    Assert.DoesNotContain(names, fun n -> n.StartsWith "dzielnica_")
+    Assert.DoesNotContain("inne_dzielnice", names)
+    Assert.DoesNotContain("poza_centrum", names)
+
+[<Fact>]
+let ``under floor district folds into inne_dzielnice`` () =
+    // 30 h in Podgórze (own column), 5 h in Bronowice (folds)
+    let rows =
+        Array.append
+            (Array.init 30 (fun _ -> hourRow "Podgórze" Mild false false))
+            (Array.init 5 (fun _ -> hourRow "Bronowice" Mild false false))
+    let rung = PerHour.Ladder.rungColumns rows 4
+    let names = rung.Columns |> List.map _.Name
+    Assert.Contains("dzielnica_Podgórze", names)
+    Assert.Contains("inne_dzielnice", names)
+    Assert.DoesNotContain("dzielnica_Bronowice", names)
+    Assert.Equal<string[]>([| "Bronowice" |], rung.FoldedDistricts)
+
+[<Fact>]
+let ``budget gate needs 15 rows per coefficient`` () =
+    // rung with 2 columns + intercept = 3 coefs → needs 45 rows
+    let make n =
+        Array.init n (fun i ->
+            { hourRow "A" Mild true false with IsWeekend = i % 2 = 0 })
+    let rungOf rows = PerHour.Ladder.rungColumns rows 1
+    Assert.False(PerHour.Ladder.isUnlocked (make 44) (rungOf (make 44)))
+    Assert.True(PerHour.Ladder.isUnlocked (make 45) (rungOf (make 45)))
+
+[<Fact>]
+let ``temperature baseline chain across rungs`` () =
+    // 30 frost + 30 cool + 40 mild rows
+    let rows =
+        Array.concat
+            [ Array.init 30 (fun _ -> hourRow "A" Frost false false)
+              Array.init 30 (fun _ -> hourRow "A" Cool false false)
+              Array.init 40 (fun _ -> hourRow "A" Mild false false) ]
+    let names level = (PerHour.Ladder.rungColumns rows level).Columns |> List.map _.Name
+    // rung 2: merged extremes flag only
+    Assert.Contains("≤0°C LUB >30°C", names 2)
+    // rung 3: adds 0–18°C
+    Assert.Contains("0–18°C", names 3)
+    // rung 4: extremes cannot split (no hot hours) → merged flag stays;
+    // 0–18 cannot split (no cold hours) → stays; 25–30 absent (no warm hours)
+    let n4 = names 4
+    Assert.Contains("≤0°C LUB >30°C", n4)
+    Assert.Contains("0–18°C", n4)
+    Assert.DoesNotContain("25–30°C", n4)
+    Assert.DoesNotContain("18–25°C", n4)  // baseline never a column
+
+[<Fact>]
+let ``rung 4 splits temperature fully when every bucket has exposure`` () =
+    let rows =
+        [ Frost; Cold; Cool; Mild; Warm; Hot ]
+        |> List.collect (fun t -> List.init 25 (fun _ -> hourRow "A" t false false))
+        |> Array.ofList
+    let names = (PerHour.Ladder.rungColumns rows 4).Columns |> List.map _.Name
+    for expected in [ "≤0°C"; "0–10°C"; "10–18°C"; "25–30°C"; ">30°C" ] do
+        Assert.Contains(expected, names)
+    Assert.DoesNotContain("≤0°C LUB >30°C", names)
+    Assert.DoesNotContain("0–18°C", names)
+
+[<Fact>]
+let ``unlockedRungs returns rungs in order`` () =
+    // 60 uniform centrum rows, half weekend: rung1 = weekend only (rush/weather
+    // zero exposure) → 2 coefs → needs 30 rows → unlocked
+    let rows =
+        Array.init 60 (fun i -> { hourRow PerHour.BaselineDistrict Mild false false with IsWeekend = i % 2 = 0 })
+    let rungs = PerHour.Ladder.unlockedRungs rows
+    Assert.NotEmpty rungs
+    Assert.Equal<int list>(
+        rungs |> List.map _.Level |> List.sort,
+        rungs |> List.map _.Level)
