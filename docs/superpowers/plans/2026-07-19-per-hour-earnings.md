@@ -20,7 +20,7 @@
 - Worked span per ride: `AcceptedTimestamp → RideEnd`. Gaps between spans count as worked, no cap, attributed to the *next* pickup's district. Hours with no ride starting or in progress get no row.
 - `noc` = hour ∈ 18:00–6:00; `weekend`/`godziny_szczytu` reuse `PerRide2.RideRow.isWeekend`/`isRushHour` evaluated at hour start.
 - Existing `/regression/ols` behavior stays byte-identical (refactoring into shared private helpers is allowed; public behavior unchanged).
-- Commit after every task. F# verification: `dotnet build bolt-sharp.sln` + `dotnet test tests/Bolt.ETL.Tests`. Python verification: `cd python-analytics && uv run pytest`.
+- Commit after every task. F# verification: `dotnet build Bolt.slnx` + `dotnet test tests/Bolt.ETL.Tests`. Python verification: `cd python-analytics && uv run pytest`.
 
 ---
 
@@ -359,7 +359,7 @@ type WlsRequest = {
 
 - [ ] **Step 3: Build**
 
-Run: `dotnet build bolt-sharp.sln`
+Run: `dotnet build Bolt.slnx`
 Expected: Build succeeded.
 
 - [ ] **Step 4: Commit**
@@ -1348,7 +1348,7 @@ and change the sections list to:
 
 - [ ] **Step 2: Full build and test run**
 
-Run: `dotnet build bolt-sharp.sln && dotnet test`
+Run: `dotnet build Bolt.slnx && dotnet test`
 Expected: build succeeds, all F# test projects pass.
 
 Run: `cd python-analytics && uv run pytest`
