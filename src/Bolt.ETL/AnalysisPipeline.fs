@@ -38,6 +38,13 @@ module AnalysisPipeline =
                         else
                             PerRide2.buildSection (PerRide2.prepareRideAnalysisSource weatherRides)
 
+                    let! perHour =
+                        if Array.isEmpty weatherRides then
+                            Task.FromResult(emptySection "per-hour-earnings" "Zarobki na godzinę pracy"
+                                "Analiza zarobków na godzinę pracy względem pory, pogody i dzielnicy.")
+                        else
+                            PerHour.buildSection (PerHour.prepareHourlySource weatherRides)
+
                     let! clustering =
                         RideClustering.buildSection (RideClustering.prepareRideAnalysisSource allRides)
 
@@ -46,7 +53,7 @@ module AnalysisPipeline =
                              GeneratedAt = DateTimeOffset.UtcNow
                              RideCount = data.PreviousOrders.Length
                              DateRange = (Array.min dates, Array.max dates)
-                             Sections = [ perRide2; clustering ] }
+                             Sections = [ perRide2; perHour; clustering ] }
             with ex ->
                 return Error $"Analiza nie powiodła się: {ex.Message}"
         }
