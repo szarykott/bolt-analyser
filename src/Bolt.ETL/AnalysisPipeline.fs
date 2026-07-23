@@ -36,7 +36,7 @@ module AnalysisPipeline =
                             Task.FromResult(emptySection "price-regression" "Regresja ceny przejazdu"
                                 "Regresja liniowa (OLS) ceny przejazdu względem dystansu, pory dnia i pogody.")
                         else
-                            PerRide2.buildSection (PerRide2.prepareRideAnalysisSource weatherRides)
+                            PerRide.buildSection (PerRide.prepareRideAnalysisSource weatherRides)
 
                     let! perHour =
                         if Array.isEmpty weatherRides then

@@ -1,4 +1,4 @@
-module Bolt.Web.Tests.ViewsTests
+module Bolt.Web.Tests.HtmlTests
 
 open System
 open Xunit
@@ -7,13 +7,13 @@ open Bolt.Web
 
 [<Fact>]
 let ``fragments are rooted in the panel div`` () =
-    Assert.StartsWith("<div id=\"panel\">", Views.progressFragment "Scraping…" "12/40")
-    Assert.StartsWith("<div id=\"panel\">", Views.magicLinkFragment "a@b.pl" None)
-    Assert.StartsWith("<div id=\"panel\">", Views.errorFragment "a@b.pl" "scraping" "boom")
+    Assert.StartsWith("<div id=\"panel\">", Html.progressFragment "Scraping…" "12/40")
+    Assert.StartsWith("<div id=\"panel\">", Html.magicLinkFragment "a@b.pl" None)
+    Assert.StartsWith("<div id=\"panel\">", Html.errorFragment "a@b.pl" "scraping" "boom")
 
 [<Fact>]
 let ``magic link fragment carries email and shows error`` () =
-    let html = Views.magicLinkFragment "a@b.pl" (Some "bad <token>")
+    let html = Html.magicLinkFragment "a@b.pl" (Some "bad <token>")
     Assert.Contains("value=\"a@b.pl\"", html)
     Assert.Contains("magic-link", html)
     Assert.Contains("bad &lt;token&gt;", html)
@@ -33,7 +33,7 @@ let ``report fragment embeds figure json and tables`` () =
                 Charts = [ { Title = "Map"; PlotlyFigureJson = """{"data":[],"layout":{}}""" } ]
                 Tables = [ { Title = "T"; Headers = [ "h" ]; Rows = [ [ "<cell>" ] ]; Notes = [] } ] } ]
     }
-    let html = Views.reportFragment report
+    let html = Html.reportFragment report
     Assert.Contains("report-content", html)
     Assert.Contains("data-plotly-target=\"chart-s1-0\"", html)
     Assert.Contains("""{"data":[],"layout":{}}""", html)
@@ -55,11 +55,11 @@ let ``script-bound json escapes closing tags`` () =
                 Charts = [ { Title = "c"; PlotlyFigureJson = """{"a":"</script>"}""" } ]
                 Tables = [] } ]
     }
-    Assert.DoesNotContain("</script>\"}", Views.reportFragment report)
+    Assert.DoesNotContain("</script>\"}", Html.reportFragment report)
 
 [<Fact>]
 let ``index page wires htmx websocket and panel`` () =
-    let html = Views.indexPage ()
+    let html = Html.indexPage ()
     Assert.StartsWith("<!DOCTYPE html>", html)
     Assert.Contains("hx-ext=\"ws\"", html)
     Assert.Contains("ws-connect=\"/ws\"", html)
@@ -83,12 +83,12 @@ let ``table notes render as legend list`` () =
                 Tables = [ { Title = "T"; Headers = [ "h" ]; Rows = []
                              Notes = [ "objaśnienie <a>" ] } ] } ]
     }
-    let html = Views.reportFragment report
+    let html = Html.reportFragment report
     Assert.Contains("<ul class=\"notes\">", html)
     Assert.Contains("objaśnienie &lt;a&gt;", html)
 
 [<Fact>]
 let ``email attribute is single-encoded by the view engine`` () =
-    let html = Views.magicLinkFragment "a&b@x.pl" None
+    let html = Html.magicLinkFragment "a&b@x.pl" None
     Assert.Contains("value=\"a&amp;b@x.pl\"", html)
     Assert.DoesNotContain("a&amp;amp;b", html)

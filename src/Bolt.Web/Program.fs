@@ -62,7 +62,7 @@ let main args =
         "/",
         Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
             ctx.Response.ContentType <- "text/html; charset=utf-8"
-            ctx.Response.WriteAsync(Views.indexPage ()))
+            ctx.Response.WriteAsync(Html.indexPage ()))
     )
     |> ignore
 

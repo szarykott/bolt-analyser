@@ -147,8 +147,8 @@ module PerHour =
                         Snow = weather.Snow <> 0.0<cm>
                         Temperature = TemperatureBucket.fromCelcius weather.Temperature
                         IsNight = hour.Hour >= 18 || hour.Hour < 6
-                        IsWeekend = PerRide2.RideRow.isWeekend hour
-                        IsRushHour = PerRide2.RideRow.isRushHour hour
+                        IsWeekend = PerRide.RideRow.isWeekend hour
+                        IsRushHour = PerRide.RideRow.isRushHour hour
                     })
             |> Array.ofList
 

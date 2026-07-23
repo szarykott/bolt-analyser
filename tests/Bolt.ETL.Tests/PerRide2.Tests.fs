@@ -1,4 +1,4 @@
-module Bolt.ETL.Tests.PerRide2Tests
+module Bolt.ETL.Tests.PerRideTests
 
 open Xunit
 open Bolt.ETL.Analysis
@@ -27,7 +27,7 @@ let private cannedOls: OlsResponse = {
 
 [<Fact>]
 let ``coefficientsTable keeps significant features sorted by absolute coefficient`` () =
-    let table = PerRide2.coefficientsTable cannedOls
+    let table = PerRide.coefficientsTable cannedOls
     // const excluded, śnieg (p=0.4) excluded; |−4.25| > |3.5|
     Assert.Equal(2, table.Rows.Length)
     Assert.Equal<string list>(
@@ -37,14 +37,14 @@ let ``coefficientsTable keeps significant features sorted by absolute coefficien
 
 [<Fact>]
 let ``coefficientsTable has Polish headers`` () =
-    let table = PerRide2.coefficientsTable cannedOls
+    let table = PerRide.coefficientsTable cannedOls
     Assert.Equal<string list>(
         [ "cecha"; "współczynnik [zł]"; "przedział ufności 95%"; "istotność (p)" ],
         table.Headers)
 
 [<Fact>]
 let ``coefficientsTable names insignificant features in the notes`` () =
-    let table = PerRide2.coefficientsTable cannedOls
+    let table = PerRide.coefficientsTable cannedOls
     let last = List.last table.Notes
     Assert.Contains("nieistotne", last)
     Assert.Contains("śnieg", last)
@@ -52,7 +52,7 @@ let ``coefficientsTable names insignificant features in the notes`` () =
 
 [<Fact>]
 let ``coefficientsTable notes explain every column`` () =
-    let table = PerRide2.coefficientsTable cannedOls
+    let table = PerRide.coefficientsTable cannedOls
     let notes = String.concat " " table.Notes
     Assert.Contains("cecha", notes)
     Assert.Contains("współczynnik", notes)
@@ -66,7 +66,7 @@ let ``coefficientsTable reports when everything is significant`` () =
             Coefficients =
                 [| coef "const" (Some 12.0) (Some 0.0) (Some 11.0) (Some 13.0)
                    coef "dystans_km" (Some 3.5) (Some 0.001) (Some 3.1) (Some 3.9) |] }
-    let table = PerRide2.coefficientsTable allSignificant
+    let table = PerRide.coefficientsTable allSignificant
     Assert.Contains("Wszystkie cechy", List.last table.Notes)
 
 [<Fact>]
@@ -74,13 +74,13 @@ let ``coefficient with missing p-value counts as insignificant`` () =
     let withMissing =
         { cannedOls with
             Coefficients = [| coef "deszcz" None None None None |] }
-    let table = PerRide2.coefficientsTable withMissing
+    let table = PerRide.coefficientsTable withMissing
     Assert.Empty(table.Rows)
     Assert.Contains("deszcz", List.last table.Notes)
 
 [<Fact>]
 let ``modelStatsTable shows fit in Polish with comma decimals`` () =
-    let table = PerRide2.modelStatsTable cannedOls
+    let table = PerRide.modelStatsTable cannedOls
     Assert.Contains<string list>([ "liczba przejazdów"; "100" ], table.Rows)
     Assert.Contains<string list>([ "R²"; "0,42" ], table.Rows)
     Assert.Contains<string list>([ "skorygowane R²"; "0,40" ], table.Rows)
@@ -88,7 +88,7 @@ let ``modelStatsTable shows fit in Polish with comma decimals`` () =
 
 [<Fact>]
 let ``toAnalyticsRows emits Polish column names and temperature values`` () =
-    let source: PerRide2.RidesDataSource = {
+    let source: PerRide.RidesDataSource = {
         Rows =
             [| { PricePln = 25.5m
                  Distance = 3.2<km>
@@ -99,7 +99,7 @@ let ``toAnalyticsRows emits Polish column names and temperature values`` () =
                  Snow = false
                  Temperature = Mild } |]
     }
-    let row = (PerRide2.toAnalyticsRows source)[0]
+    let row = (PerRide.toAnalyticsRows source)[0]
     Assert.Equal<Set<string>>(
         Set [ "cena_pln"; "dystans_km"; "godziny_szczytu"; "weekend"
               "deszcz"; "śnieg"; "dzielnica"; "temperatura" ],

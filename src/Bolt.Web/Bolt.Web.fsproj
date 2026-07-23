@@ -7,7 +7,10 @@
   <ItemGroup>
     <Compile Include="Jobs/JobState.fs" />
     <Compile Include="Jobs/JobRunner.fs" />
-    <Compile Include="Views.fs" />
+    <Compile Include="Views\ResultTable.fs" />
+    <Compile Include="Views\ResultChart.fs" />
+    <Compile Include="Views\Html.fs" />
+    <Compile Include="Mappings\OlsMapper.fs" />
     <Compile Include="Pipeline.fs" />
     <Compile Include="WebSockets.fs" />
     <Compile Include="Program.fs" />

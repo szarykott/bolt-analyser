@@ -14,11 +14,11 @@
     <Compile Include="Analytics\AnalyticsClient.fs" />
     <Compile Include="Plotting\ClusterMap.fs" />
     <Compile Include="Analysis\Report.fs" />
-    <Compile Include="Analysis\PerRide1.fs" />
-    <Compile Include="Analysis\PerRide2.fs" />
+    <Compile Include="Analysis\PerRide.fs" />
     <Compile Include="Analysis\PerHour.fs" />
     <Compile Include="Analysis\RideClustering.fs" />
     <Compile Include="AnalysisPipeline.fs" />
+    <Compile Include="AvailableAnalyses.fs" />
   </ItemGroup>
 
   <ItemGroup>

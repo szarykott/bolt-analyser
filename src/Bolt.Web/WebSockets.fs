@@ -35,14 +35,14 @@ let private parseMessage (json: string) : ClientMessage option =
 
 let private stateFragment (email: string) (state: JobState) =
     match state with
-    | CheckingCache -> Views.progressFragment "Sprawdzanie zapisanych danych…" ""
-    | Authenticating -> Views.progressFragment "Logowanie…" ""
-    | AwaitingMagicLink error -> Views.magicLinkFragment email error
-    | ScrapingRides detail -> Views.progressFragment "Pobieranie przejazdów…" detail
-    | FetchingMeteo -> Views.progressFragment "Pobieranie danych pogodowych…" ""
-    | RunningAnalysis -> Views.progressFragment "Trwa analiza…" ""
-    | Done report -> Views.reportFragment report
-    | Failed(step, message) -> Views.errorFragment email step message
+    | CheckingCache -> Html.progressFragment "Sprawdzanie zapisanych danych…" ""
+    | Authenticating -> Html.progressFragment "Logowanie…" ""
+    | AwaitingMagicLink error -> Html.magicLinkFragment email error
+    | ScrapingRides detail -> Html.progressFragment "Pobieranie przejazdów…" detail
+    | FetchingMeteo -> Html.progressFragment "Pobieranie danych pogodowych…" ""
+    | RunningAnalysis -> Html.progressFragment "Trwa analiza…" ""
+    | Done report -> Html.reportFragment report
+    | Failed(step, message) -> Html.errorFragment email step message
 
 /// WebSocket handshakes bypass the same-origin policy, so the Origin header
 /// must be checked explicitly (Cross-Site WebSocket Hijacking).
@@ -87,7 +87,7 @@ let handle (deps: PipelineDeps<'session, 'data>) (ctx: HttpContext) : Task =
             let startJob (email: string) =
                 task {
                     if not (activeEmails.TryAdd(email, 0uy)) then
-                        do! send (Views.errorFragment email "uruchamianie"
+                        do! send (Html.errorFragment email "uruchamianie"
                                       "Analiza dla tego adresu e-mail już trwa. Spróbuj ponownie później.")
                     else
                         let cts = new CancellationTokenSource()
@@ -146,7 +146,7 @@ let handle (deps: PipelineDeps<'session, 'data>) (ctx: HttpContext) : Task =
                                 | _ ->
                                     // A job must be started with an e-mail first;
                                     // a magic link can never be the first message.
-                                    do! send (Views.errorFragment email "logowanie"
+                                    do! send (Html.errorFragment email "logowanie"
                                                   "Najpierw rozpocznij analizę, podając adres e-mail.")
                             | None -> ()
                 with
