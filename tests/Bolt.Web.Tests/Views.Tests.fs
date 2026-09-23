@@ -6,13 +6,13 @@ open Bolt.Web.Tests.ReportFixture
 
 [<Fact>]
 let ``fragments are rooted in the panel div`` () =
-    Assert.StartsWith("<div id=\"panel\">", Views.progressFragment "Scraping…" "12/40")
-    Assert.StartsWith("<div id=\"panel\">", Views.magicLinkFragment "a@b.pl" None)
-    Assert.StartsWith("<div id=\"panel\">", Views.errorFragment "a@b.pl" "scraping" "boom")
+    Assert.StartsWith("<div id=\"panel\">", Views.Processing.progressFragment "Scraping…" "12/40")
+    Assert.StartsWith("<div id=\"panel\">", Views.Input.magicLinkFragment "a@b.pl" None)
+    Assert.StartsWith("<div id=\"panel\">", Views.Processing.errorFragment "a@b.pl" "scraping" "boom")
 
 [<Fact>]
 let ``magic link fragment carries email and shows error`` () =
-    let html = Views.magicLinkFragment "a@b.pl" (Some "bad <token>")
+    let html = Views.Input.magicLinkFragment "a@b.pl" (Some "bad <token>")
     Assert.Contains("value=\"a@b.pl\"", html)
     Assert.Contains("magic-link", html)
     Assert.Contains("bad &lt;token&gt;", html)
@@ -20,7 +20,7 @@ let ``magic link fragment carries email and shows error`` () =
 
 [<Fact>]
 let ``report renders basic statistics before the cluster chart`` () =
-    let html = Views.reportFragment report
+    let html = Views.Report.reportFragment report
     let basic = html.IndexOf("id=\"basic-statistics\"")
     let clusters = html.IndexOf("id=\"ride-clusters\"")
     Assert.True(basic >= 0 && basic < clusters)
@@ -34,13 +34,13 @@ let ``report renders basic statistics before the cluster chart`` () =
 [<Fact>]
 let ``report lists skipped orders and escapes their reasons`` () =
     let withSkipped = { report with SkippedOrders = [| { OrderId = 7L; Reason = "<error>" } |] }
-    let html = Views.reportFragment withSkipped
+    let html = Views.Report.reportFragment withSkipped
     Assert.Contains("Kurs 7: &lt;error&gt;", html)
     Assert.Contains("Pominięte kursy (1)", html)
 
 [<Fact>]
 let ``report shows completed ride count earnings distance and four hourly groups`` () =
-    let html = Views.reportFragment report
+    let html = Views.Report.reportFragment report
     Assert.Contains("Liczba przejazd&#243;w: </strong>42", html)
     Assert.Contains("234,50 zł", html)
     Assert.Contains("57,25 km", html)
@@ -68,19 +68,19 @@ let ``report shows completed ride count earnings distance and four hourly groups
 let ``highlight addresses are HTML encoded`` () =
     let longest = { report.BasicStatistics.LongestRide with FromAddress = Some "<adres>" }
     let stats = { report.BasicStatistics with LongestRide = longest }
-    let html = Views.reportFragment { report with BasicStatistics = stats }
+    let html = Views.Report.reportFragment { report with BasicStatistics = stats }
     Assert.Contains("&lt;adres&gt;", html)
     Assert.DoesNotContain("<adres>", html)
 
 [<Fact>]
 let ``hourly groups stay visible without observations`` () =
     let stats = { report.BasicStatistics with HourlyAverages = [||] }
-    let html = Views.reportFragment { report with BasicStatistics = stats }
+    let html = Views.Report.reportFragment { report with BasicStatistics = stats }
     Assert.Equal(4, html.Split("<td>–</td><td>0,00</td>").Length - 1)
 
 [<Fact>]
 let ``index page wires htmx websocket and panel`` () =
-    let html = Views.indexPage ()
+    let html = Views.Input.indexPage ()
     Assert.StartsWith("<!DOCTYPE html>", html)
     Assert.Contains("hx-ext=\"ws\"", html)
     Assert.Contains("ws-connect=\"/ws\"", html)
@@ -92,6 +92,6 @@ let ``index page wires htmx websocket and panel`` () =
 
 [<Fact>]
 let ``email attribute is single-encoded by the view engine`` () =
-    let html = Views.magicLinkFragment "a&b@x.pl" None
+    let html = Views.Input.magicLinkFragment "a&b@x.pl" None
     Assert.Contains("value=\"a&amp;b@x.pl\"", html)
     Assert.DoesNotContain("a&amp;amp;b", html)

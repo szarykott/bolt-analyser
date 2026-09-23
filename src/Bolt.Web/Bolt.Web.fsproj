@@ -8,9 +8,11 @@
     <Compile Include="Report.fs" />
     <Compile Include="Jobs/JobState.fs" />
     <Compile Include="Jobs/JobRunner.fs" />
-    <Compile Include="ClusterMap.fs" />
-    <Compile Include="ReportViews.fs" />
-    <Compile Include="Views.fs" />
+    <Compile Include="Views/Shared.fs" />
+    <Compile Include="Views/Input.fs" />
+    <Compile Include="Views/Processing.fs" />
+    <Compile Include="Views/ClusterMap.fs" />
+    <Compile Include="Views/Report.fs" />
     <Compile Include="Pipeline.fs" />
     <Compile Include="WebSockets.fs" />
     <Compile Include="Program.fs" />

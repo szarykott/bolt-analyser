@@ -1,4 +1,4 @@
-namespace Bolt.Web
+namespace Bolt.Web.Views
 
 // Plotly layers for the pickup clustering result shown in the Web report.
 

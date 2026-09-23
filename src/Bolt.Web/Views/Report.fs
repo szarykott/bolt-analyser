@@ -1,8 +1,9 @@
-module Bolt.Web.ReportViews
+module Bolt.Web.Views.Report
 
 open System.Globalization
 open Bolt.ETL.Analysis
 open Bolt.Web.Report
+open Bolt.Web.Views.Shared
 open Giraffe.ViewEngine
 open Plotly.NET
 
@@ -111,3 +112,31 @@ let sections (report: AnalysisReport) = [
     basicStatisticsNode report
     pickupClustersNode report.PickupClusters
 ]
+
+let reportFragment (report: AnalysisReport) =
+    let fromDate, toDate = report.DateRange
+
+    let header = [
+        h1 [] [ str $"Analiza przejazdów Bolt — {report.Email}" ]
+        p [] [
+            str (
+                $"""{report.RideCount} przejazdów między {fromDate.ToString "yyyy-MM-dd"} a {toDate.ToString "yyyy-MM-dd"}, """
+                + $"""raport wygenerowano {report.GeneratedAt.ToString "yyyy-MM-dd HH:mm"} UTC."""
+            )
+        ]
+        if not (Array.isEmpty report.SkippedOrders) then
+            section [] [
+                h2 [] [ str $"Pominięte kursy ({report.SkippedOrders.Length})" ]
+                p [] [ str "Nie udało się pobrać szczegółów tych kursów po trzech próbach. Pominięto je w analizie." ]
+                ul [] [
+                    for order in report.SkippedOrders do
+                        li [] [ str $"Kurs {order.OrderId}: {order.Reason}" ]
+                ]
+            ]
+    ]
+
+    panel [
+        div [ _id "report-content" ] (header @ sections report)
+        button [ _onclick "downloadReport()" ] [ str "Pobierz raport" ]
+    ]
+    |> render

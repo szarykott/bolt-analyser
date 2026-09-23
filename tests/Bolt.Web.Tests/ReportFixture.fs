@@ -2,6 +2,7 @@ module Bolt.Web.Tests.ReportFixture
 
 open System
 open Bolt.Web.Report
+open Bolt.ETL.Analysis.BasicStatistics
 
 let private highlight date fromAddress toAddress distance earnings : RideHighlight =
     { Date = DateTimeOffset.Parse date
