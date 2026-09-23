@@ -4,14 +4,16 @@ open Giraffe.ViewEngine
 open Bolt.Web.Views.Shared
 
 let private css = """
-:root { color-scheme: light; font-family: system-ui, sans-serif; color: #17251e; background: #f4f7f5; }
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap');
+:root { color-scheme: light; font-family: 'Ubuntu Mono', monospace; color: #17251e; background: #f4f7f5; }
 * { box-sizing: border-box; }
 body { margin: 0; }
 .app-shell, #report-content { max-width: 1200px; margin: 0 auto; }
-.app-shell { padding: 2rem 1.5rem 4rem; }
+.app-shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100svh; padding: 2rem 1.5rem 4rem; }
+#panel { display: flex; flex: 1; flex-direction: column; }
+#report-content { width: 100%; }
 .exported-report #report-content { padding: 2rem 1.5rem 4rem; }
-.app-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; font-weight: 700; }
-.brand-mark { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.7rem; background: #2ecb70; color: #10251a; }
+.app-header { margin-bottom: 2rem; font-weight: 700; }
 h1, h2, h3, h4, p { margin-top: 0; }
 h1 { font-size: clamp(1.8rem, 4vw, 2.7rem); line-height: 1.15; letter-spacing: -0.035em; }
 h2 { font-size: 1.35rem; }
@@ -20,7 +22,7 @@ p { line-height: 1.6; }
 .muted, .notes { color: #53665b; }
 .notes { font-size: 0.875rem; max-width: 80ch; }
 .flow-card, .report-section, .metric-card { background: #fff; border: 1px solid #dce8df; border-radius: 1rem; box-shadow: 0 8px 30px rgba(18, 49, 30, 0.04); }
-.flow-card { max-width: 640px; padding: clamp(1.5rem, 4vw, 2.5rem); }
+.flow-card { width: 100%; max-width: 640px; padding: clamp(1.5rem, 4vw, 2.5rem); margin: auto; }
 .flow-card p:last-child { margin-bottom: 0; }
 .form-field { display: grid; gap: 0.5rem; margin: 1.5rem 0 1rem; font-weight: 600; }
 input { width: 100%; min-height: 2.8rem; padding: 0.65rem 0.85rem; border: 1px solid #aebfb3; border-radius: 0.65rem; background: #fff; color: inherit; font: inherit; }
@@ -77,7 +79,6 @@ let indexPage () =
         body [ attr "hx-ext" "ws"; attr "ws-connect" "/ws" ] [
             div [ _class "app-shell" ] [
                 header [ _class "app-header" ] [
-                    span [ _class "brand-mark" ] [ str "B" ]
                     span [] [ str "Bolt · analiza przejazdów" ]
                 ]
                 panel [
