@@ -1,22 +1,46 @@
 services:
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    command: ["/bin/sh", "/etc/nginx/bolt/start.sh"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx:/etc/nginx/bolt:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - acme-webroot:/var/www/certbot:ro
+    depends_on:
+      - web
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/certbot.sh"]
+    environment:
+      LETSENCRYPT_DOMAIN: szarykott.dev
+      LETSENCRYPT_EMAIL: radoslaw.edward.kot@gmail.com
+    volumes:
+      - ./nginx/certbot.sh:/opt/certbot.sh:ro
+      - letsencrypt:/etc/letsencrypt
+      - acme-webroot:/var/www/certbot
+    depends_on:
+      - nginx
+
   web:
     image: dzikikitty/bolt-sharp-web:${BOLT_VERSION:-latest}
+    restart: unless-stopped
     environment:
       ASPNETCORE_HTTP_PORTS: "8080"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       Analytics__BaseUrl: http://analytics:8000
-      BOLT_STORAGE_ROOT: /data
-    ports:
-      - "8080:8080"
-    volumes:
-      - bolt-data:/data
     depends_on:
       analytics:
         condition: service_healthy
 
   analytics:
     image: dzikikitty/bolt-sharp-analytics:${BOLT_VERSION:-latest}
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
       interval: 10s
@@ -24,4 +48,5 @@ services:
       retries: 5
 
 volumes:
-  bolt-data:
+  letsencrypt:
+  acme-webroot:

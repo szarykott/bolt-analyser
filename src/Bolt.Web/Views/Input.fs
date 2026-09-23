@@ -77,7 +77,7 @@ let private page bodyAttributes content =
             script [ _src "https://unpkg.com/htmx.org@1.9.12" ] []
             script [ _src "https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js" ] []
             script [ _src "https://cdn.plot.ly/plotly-2.32.0.min.js" ] []
-            script [ _src "/app.js" ] []
+            script [ _src "app.js" ] []
             style [] [ rawText css ]
         ]
         body bodyAttributes [
@@ -92,7 +92,7 @@ let private page bodyAttributes content =
     |> RenderView.AsString.htmlDocument
 
 let emailPage () =
-    page [ attr "hx-ext" "ws"; attr "ws-connect" "/ws" ] [
+    page [ attr "hx-ext" "ws"; attr "ws-connect" "ws" ] [
         h1 [] [ str "Analiza przejazdów Bolt" ]
         p [ _class "muted" ] [ str "Przygotuj podsumowanie swoich przejazdów i zarobków." ]
 #if DEBUG
@@ -137,7 +137,7 @@ let indexPage () =
             a [ _href "https://github.com/szarykott/bolt-analyser" ] [ str "Kod źródłowy jest dostępny na GitHubie" ]
             str "; możesz go sprawdzić i uruchomić aplikację na własnym komputerze."
         ]
-        form [ _action "/start"; _method "get" ] [
+        form [ _action "start"; _method "get" ] [
             button [ _type "submit" ] [ str "Przejdź do podania e-maila" ]
         ]
     ]
@@ -162,7 +162,7 @@ let magicLinkFragment (email: string) (error: string option) =
                 button [ _type "submit" ] [ str "Zaloguj się" ]
             ]
             yield p [ _class "muted link-example-caption" ] [ str "Przykład: tak należy skopiować link z wiadomości e-mail od Bolt:" ]
-            yield img [ _src "/bolt-copy-link.png"; _alt "Przykład kopiowania linku z wiadomości Bolt"; _class "link-example" ]
+            yield img [ _src "bolt-copy-link.png"; _alt "Przykład kopiowania linku z wiadomości Bolt"; _class "link-example" ]
         ]
     ]
     |> render

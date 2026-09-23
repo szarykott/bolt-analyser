@@ -2,7 +2,9 @@ module Bolt.Web.Program
 
 open System
 open Bolt.ETL.Analytics
+#if DEBUG
 open Bolt.Infrastrucutre.storage.Constants
+#endif
 open Bolt.Models.BoltApi
 open Bolt.Scraper.ScrapePipeline
 open Bolt.Web.Jobs
@@ -20,7 +22,9 @@ let main args =
     builder.Services.AddSingleton<PipelineDeps<ScrapeSession, ScrapedData>>(Pipeline.realDeps) |> ignore
     let app = builder.Build()
 
+#if DEBUG
     Paths.ensureStorageExists () |> ignore
+#endif
 
     app.Configuration.GetValue<string>("Analytics:BaseUrl", "http://localhost:8000")
     |> AnalyticsClient.configure

@@ -19,11 +19,11 @@ let ``magic link fragment carries email and shows error`` () =
     Assert.Contains("Zaloguj się", html)
     Assert.Contains("Kliknij prawym przyciskiem myszy", html)
     Assert.Contains("wklej go w pole poniżej", html)
-    Assert.Contains("src=\"/bolt-copy-link.png\"", html)
+    Assert.Contains("src=\"bolt-copy-link.png\"", html)
     Assert.Contains("alt=\"Przykład kopiowania linku z wiadomości Bolt\"", html)
     let button = html.IndexOf("Zaloguj się")
     let caption = html.IndexOf("Przykład: tak należy skopiować link")
-    let image = html.IndexOf("src=\"/bolt-copy-link.png\"")
+    let image = html.IndexOf("src=\"bolt-copy-link.png\"")
     Assert.True(button >= 0 && button < caption && caption < image)
 
 [<Fact>]
@@ -108,10 +108,10 @@ let ``email page wires htmx websocket and panel`` () =
     let html = Views.Input.emailPage ()
     Assert.StartsWith("<!DOCTYPE html>", html)
     Assert.Contains("hx-ext=\"ws\"", html)
-    Assert.Contains("ws-connect=\"/ws\"", html)
+    Assert.Contains("ws-connect=\"ws\"", html)
     Assert.Contains("<div id=\"panel\">", html)
     Assert.Contains("start-analysis", html)
-    Assert.Contains("/app.js", html)
+    Assert.Contains("src=\"app.js\"", html)
     Assert.Contains("lang=\"pl\"", html)
     Assert.Contains("Analiza przejazd&#243;w Bolt", html)
     Assert.Contains("<header class=\"app-header\"><span>Analiza przejazd&#243;w Bolta</span></header>", html)
@@ -141,7 +141,7 @@ let ``index page warns before asking for email in release`` () =
     Assert.Contains("duże zaufanie do autora tej strony", html)
     Assert.Contains("nie są zapisywane na serwerze", html)
     Assert.Contains("https://github.com/szarykott/bolt-analyser", html)
-    Assert.Contains("action=\"/start\"", html)
+    Assert.Contains("action=\"start\"", html)
     Assert.Contains("Przejdź do podania e-maila", html)
 #endif
 

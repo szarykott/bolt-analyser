@@ -8,13 +8,11 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+  test:
     if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name }}
-      WEB_IMAGE: dzikikitty/bolt-sharp-web
-      ANALYTICS_IMAGE: dzikikitty/bolt-sharp-analytics
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,14 +34,31 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Test .NET solution
-        run: dotnet test Bolt.slnx
+      - name: Test .NET solution (Release)
+        run: dotnet test Bolt.slnx --configuration Release
 
-      - uses: astral-sh/setup-uv@v10
+      - name: Test Web (Debug)
+        run: dotnet test tests/Bolt.Web.Tests/Bolt.Web.Tests.fsproj --configuration Debug
+
+      - uses: astral-sh/setup-uv@v9.0.0
 
       - name: Test Python analytics
         working-directory: python-analytics
         run: uv run --python 3.12 --frozen pytest
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      WEB_IMAGE: dzikikitty/bolt-sharp-web
+      ANALYTICS_IMAGE: dzikikitty/bolt-sharp-analytics
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Log in to Docker Hub
         env:
@@ -64,3 +79,11 @@ jobs:
           docker push "$WEB_IMAGE:latest"
           docker push "$ANALYTICS_IMAGE:$RELEASE_TAG"
           docker push "$ANALYTICS_IMAGE:latest"
+
+      - name: Attach deployment package to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="bolt-sharp-deploy-$RELEASE_TAG.zip"
+          zip "$archive" compose.release.yaml nginx/http.conf nginx/https.conf nginx/start.sh nginx/certbot.sh
+          gh release upload "$RELEASE_TAG" "$archive" --repo "$GITHUB_REPOSITORY"
