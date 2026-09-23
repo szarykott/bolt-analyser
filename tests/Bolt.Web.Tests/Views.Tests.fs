@@ -17,6 +17,14 @@ let ``magic link fragment carries email and shows error`` () =
     Assert.Contains("magic-link", html)
     Assert.Contains("bad &lt;token&gt;", html)
     Assert.Contains("Zaloguj się", html)
+    Assert.Contains("Kliknij prawym przyciskiem myszy", html)
+    Assert.Contains("wklej go w pole poniżej", html)
+    Assert.Contains("src=\"/bolt-copy-link.png\"", html)
+    Assert.Contains("alt=\"Przykład kopiowania linku z wiadomości Bolt\"", html)
+    let button = html.IndexOf("Zaloguj się")
+    let caption = html.IndexOf("Przykład: tak należy skopiować link")
+    let image = html.IndexOf("src=\"/bolt-copy-link.png\"")
+    Assert.True(button >= 0 && button < caption && caption < image)
 
 [<Fact>]
 let ``report renders basic statistics before the cluster chart`` () =
@@ -30,6 +38,20 @@ let ``report renders basic statistics before the cluster chart`` () =
     Assert.Contains("Skupiska (punkty: 1, poza skupiskami: 0)", html)
     Assert.Contains("downloadReport()", html)
     Assert.Contains("42 przejazd&#243;w", html)
+
+[<Fact>]
+let ``release report asks to save the result before the download button`` () =
+    let html = Views.Report.reportFragment report
+#if DEBUG
+    Assert.DoesNotContain("Dane użyte do przygotowania tej analizy nie zostały zapisane na serwerze", html)
+#else
+    let notice = html.IndexOf("Dane użyte do przygotowania tej analizy nie zostały zapisane na serwerze")
+    let download = html.IndexOf("downloadReport()")
+    Assert.True(notice >= 0 && notice < download)
+    Assert.Contains("Pobierz raport teraz", html)
+    Assert.Contains("bez ponownego oczekiwania na analizę", html)
+    Assert.Contains("nie obciążać ponownie serwera", html)
+#endif
 
 [<Fact>]
 let ``report lists skipped orders and escapes their reasons`` () =
@@ -82,8 +104,8 @@ let ``hourly groups stay visible without observations`` () =
     Assert.Equal(4, html.Split("<td>–</td><td>0,00</td>").Length - 1)
 
 [<Fact>]
-let ``index page wires htmx websocket and panel`` () =
-    let html = Views.Input.indexPage ()
+let ``email page wires htmx websocket and panel`` () =
+    let html = Views.Input.emailPage ()
     Assert.StartsWith("<!DOCTYPE html>", html)
     Assert.Contains("hx-ext=\"ws\"", html)
     Assert.Contains("ws-connect=\"/ws\"", html)
@@ -92,7 +114,36 @@ let ``index page wires htmx websocket and panel`` () =
     Assert.Contains("/app.js", html)
     Assert.Contains("lang=\"pl\"", html)
     Assert.Contains("Analiza przejazd&#243;w Bolt", html)
+    Assert.Contains("<header class=\"app-header\"><span>Analiza przejazd&#243;w Bolta</span></header>", html)
     Assert.Contains("@media (max-width: 650px)", html)
+    Assert.DoesNotContain("trybie Release", html)
+#if DEBUG
+    Assert.Contains("Aplikacja działa w trybie Debug.", html)
+#else
+    Assert.DoesNotContain("trybie Debug", html)
+#endif
+
+[<Fact>]
+let ``index page warns before asking for email in release`` () =
+    let html = Views.Input.indexPage ()
+    Assert.DoesNotContain("Release", html)
+#if DEBUG
+    Assert.Contains("Aplikacja działa w trybie Debug.", html)
+    Assert.Contains("name=\"email\"", html)
+#else
+    Assert.Contains("Zanim podasz adres e-mail", html)
+    Assert.Contains("To nie jest oficjalny produkt Bolta", html)
+    Assert.Contains("osobisty projekt stworzony przez kierowcę Bolt", html)
+    Assert.DoesNotContain("name=\"email\"", html)
+    Assert.DoesNotContain("ws-connect", html)
+    Assert.Contains("wylogowanie Cię z aplikacji Bolt", html)
+    Assert.Contains("wszystkich danych dostępnych na Twoim koncie kierowcy", html)
+    Assert.Contains("duże zaufanie do autora tej strony", html)
+    Assert.Contains("nie są zapisywane na serwerze", html)
+    Assert.Contains("https://github.com/szarykott/bolt-analyser", html)
+    Assert.Contains("action=\"/start\"", html)
+    Assert.Contains("Przejdź do podania e-maila", html)
+#endif
 
 [<Fact>]
 let ``report wraps wide tables and lets the chart size to its container`` () =

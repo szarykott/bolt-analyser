@@ -18,3 +18,12 @@ let ``health endpoint responds ok`` () =
     Assert.Equal(HttpStatusCode.OK, response.StatusCode)
     let body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
     Assert.Contains("\"status\":\"ok\"", body.Replace(" ", ""))
+
+[<Fact>]
+let ``start page serves email form`` () =
+    use factory = makeFactory ()
+    use client = factory.CreateClient()
+    let response = client.GetAsync("/start").GetAwaiter().GetResult()
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode)
+    let body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    Assert.Contains("name=\"email\"", body)

@@ -4,7 +4,9 @@ open System
 open System.Net.Http
 open System.Text.Json.Serialization
 open Bolt.Infrastrucutre.Serialization
+#if DEBUG
 open Bolt.Infrastrucutre.Logging
+#endif
 open Bolt.Scraper.BoltApi.ApiModels
 open Bolt.Scraper.BoltApi.Tokens
 open Bolt.Scraper.Http
@@ -18,15 +20,19 @@ module LowLevelApi =
         { [<JsonPropertyName("code")>]
           Code: int }
 
+#if DEBUG
     let private logRequest (request: HttpRequestMessage) =
         Logger.debug $"[{request.Method}] {request.RequestUri}"
+#endif
         
     let private rawSend<'T>
         (cfg: ApiConfig)
         (ct: CancellationToken)
         (req: HttpRequestMessage)
         : Task<Result<'T, ApiError>> =
-        logRequest req    
+#if DEBUG
+        logRequest req
+#endif
         
         task {
             try
@@ -34,7 +40,9 @@ module LowLevelApi =
 
                 let! body = resp.Content.ReadAsStringAsync ct
 
+#if DEBUG
                 Logger.debug $"[{resp.StatusCode}] {body}"
+#endif
                 
                 if resp.IsSuccessStatusCode then
                     try

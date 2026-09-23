@@ -91,6 +91,12 @@ let private pickupClustersNode (result: RideClustering.AnalysisResult) =
     let chartId = "chart-ride-clusters-0"
     let chartNodes = [
         h4 [] [ str "Mapa skupisk odbiorów" ]
+        p [] [
+            str "Mapa pokazuje miejsca odbioru pasażerów z analizowanych przejazdów. "
+            str "Każda kropka to jeden odbiór; ten sam kolor oznacza miejsca bliskie sobie i odbiory o podobnej porze. "
+            str "Szare kropki nie należą do żadnego skupiska. Ciemny punkt wskazuje środek skupiska, "
+            str "a godzina obok niego to średnia pora odbioru."
+        ]
         div [ _id chartId; _class "chart-container" ] []
         script [ _type "application/json"; attr "data-plotly-target" chartId ] [
             rawText ((GenericChart.toFigureJson chart).Replace("</", "<\\/"))
@@ -149,6 +155,15 @@ let reportFragment (report: AnalysisReport) =
         ]
 
     panel [
+#if !DEBUG
+        div [ _class "report-notice" ] [
+            p [] [
+                str "Dane użyte do przygotowania tej analizy nie zostały zapisane na serwerze. "
+                str "Pobierz raport teraz, aby móc wrócić do niego później bez ponownego oczekiwania na analizę "
+                str "i nie obciążać ponownie serwera."
+            ]
+        ]
+#endif
         div [ _class "report-actions" ] [
             button [ _type "button"; _onclick "downloadReport()" ] [ str "Pobierz raport" ]
         ]

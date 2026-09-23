@@ -51,6 +51,14 @@ let main args =
     |> ignore
 
     app.MapGet(
+        "/start",
+        Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
+            ctx.Response.ContentType <- "text/html; charset=utf-8"
+            ctx.Response.WriteAsync(Views.Input.emailPage ()))
+    )
+    |> ignore
+
+    app.MapGet(
         "/health",
         Func<Threading.Tasks.Task<IResult>>(fun () ->
             task {
