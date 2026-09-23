@@ -32,6 +32,48 @@ let private clearWeather (_: DateTimeOffset) : WeatherDataPoint =
 let private buildRows rides = PerHour.Dataset.buildRows clearWeather districtOf rides
 
 [<Fact>]
+let ``basic hourly averages split earnings at the hour boundary`` () =
+    let averages =
+        PerHour.basicHourlyAverages
+            [| ride "2026-07-14T17:30:00+02:00" "2026-07-14T18:30:00+02:00" 60m "A" |]
+    let day = averages |> Array.find (fun a -> not a.IsNight)
+    let night = averages |> Array.find _.IsNight
+    Assert.Equal(30.0, day.Earnings, 3)
+    Assert.Equal(0.5, day.WorkedHours, 3)
+    Assert.Equal(30.0, night.Earnings, 3)
+    Assert.Equal(0.5, night.WorkedHours, 3)
+
+[<Fact>]
+let ``basic hourly rate includes gaps and weights partial hours`` () =
+    let averages =
+        PerHour.basicHourlyAverages
+            [| ride "2026-07-14T14:10:00+02:00" "2026-07-14T14:30:00+02:00" 30m "A"
+               ride "2026-07-14T14:40:00+02:00" "2026-07-14T15:00:00+02:00" 30m "B" |]
+    let day = averages |> Array.exactlyOne
+    Assert.Equal(60.0, day.Earnings, 3)
+    Assert.Equal(50.0 / 60.0, day.WorkedHours, 3)
+    Assert.Equal(72.0, day.Earnings / day.WorkedHours, 3)
+
+[<Fact>]
+let ``basic hourly averages skip fully idle hours`` () =
+    let averages =
+        PerHour.basicHourlyAverages
+            [| ride "2026-07-14T14:00:00+02:00" "2026-07-14T14:50:00+02:00" 50m "A"
+               ride "2026-07-14T16:20:00+02:00" "2026-07-14T16:40:00+02:00" 20m "B" |]
+    let day = averages |> Array.exactlyOne
+    Assert.Equal(70.0, day.Earnings, 3)
+    Assert.Equal(100.0 / 60.0, day.WorkedHours, 3)
+
+[<Fact>]
+let ``basic hourly averages use the existing weekend boundary`` () =
+    let averages =
+        PerHour.basicHourlyAverages
+            [| ride "2026-07-17T17:00:00+02:00" "2026-07-17T17:30:00+02:00" 20m "A"
+               ride "2026-07-17T18:00:00+02:00" "2026-07-17T18:30:00+02:00" 20m "B" |]
+    Assert.Contains(averages, fun a -> not a.IsWeekend && not a.IsNight)
+    Assert.Contains(averages, fun a -> a.IsWeekend && a.IsNight)
+
+[<Fact>]
 let ``ride spanning two hours splits earnings and minutes proportionally`` () =
     // 14:30–15:30, 60 zł: 30 min in each hour, 30 zł each, fill 0.5, rate 60
     let rows = buildRows [| ride "2026-07-14T14:30:00+02:00" "2026-07-14T15:30:00+02:00" 60m "A" |]

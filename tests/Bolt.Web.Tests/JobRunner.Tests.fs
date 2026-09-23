@@ -10,7 +10,6 @@ open Bolt.Web
 open Bolt.Web.Jobs
 open Bolt.Web.Tests.ReportFixture
 
-let private cap = DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
 let private ok () : Task<Result<unit, string>> = Task.FromResult(Ok())
 let private err e : Task<Result<unit, string>> = Task.FromResult(Error e)
 
@@ -24,8 +23,7 @@ let private baseDeps: PipelineDeps<unit, int> = {
     RequestMagicLink = fun _ _ -> ok ()
     AuthenticateWithUrl = fun _ _ _ -> ok ()
     ScrapeRides = fun _ _ _ -> Task.FromResult(Ok 3)
-    EnsureMeteo = fun _ _ -> Task.FromResult(Ok cap)
-    RunAnalysis = fun _ _ -> Task.FromResult(Ok report)
+    RunAnalysis = fun _ -> Task.FromResult(Ok report)
     RideCountOf = id
 }
 
@@ -43,13 +41,13 @@ let private runToEnd deps (feed: string list) =
 let ``cached data skips auth and scraping`` () =
     let states = runToEnd { baseDeps with LoadCached = fun _ -> Some 3 } []
     Assert.Equal<JobState list>(
-        [ CheckingCache; FetchingMeteo; RunningAnalysis; Done report ], states)
+        [ CheckingCache; RunningAnalysis; Done report ], states)
 
 [<Fact>]
 let ``no tokens goes through magic link then scrapes`` () =
     let states = runToEnd baseDeps [ "https://link" ]
     Assert.Contains(AwaitingMagicLink None, states)
-    Assert.Contains(FetchingMeteo, states)
+    Assert.Contains(RunningAnalysis, states)
     Assert.Equal(Done report, List.last states)
 
 [<Fact>]
@@ -92,23 +90,14 @@ let ``zero scraped rides fail at the scraping step`` () =
         Failed("pobieranie przejazdów", "Nie znaleziono przejazdów dla tego konta"), List.last states)
 
 [<Fact>]
-let ``weather cap flows from EnsureMeteo into RunAnalysis`` () =
-    let received = ConcurrentQueue<DateTimeOffset>()
+let ``scraped data flows directly into analysis`` () =
+    let received = ConcurrentQueue<int>()
     let deps =
         { baseDeps with
             HasTokens = fun _ -> true
-            RunAnalysis = fun _ c -> received.Enqueue c; Task.FromResult(Ok report) }
+            RunAnalysis = fun data -> received.Enqueue data; Task.FromResult(Ok report) }
     runToEnd deps [] |> ignore
-    Assert.Equal<DateTimeOffset list>([ cap ], List.ofSeq received)
-
-[<Fact>]
-let ``meteo failure ends in Failed at the weather step`` () =
-    let deps =
-        { baseDeps with
-            HasTokens = fun _ -> true
-            EnsureMeteo = fun _ _ -> Task.FromResult(Error "boom") }
-    let states = runToEnd deps []
-    Assert.Equal(Failed("pobieranie danych pogodowych", "boom"), List.last states)
+    Assert.Equal<int list>([ 3 ], List.ofSeq received)
 
 [<Fact>]
 let ``cancellation while awaiting magic link produces no terminal state`` () =

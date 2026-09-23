@@ -61,16 +61,11 @@ let run
             | None, Some d when deps.RideCountOf d = 0 ->
                 do! notify (Failed("pobieranie przejazdów", "Nie znaleziono przejazdów dla tego konta"))
             | None, Some d ->
-                do! notify FetchingMeteo
+                do! notify RunningAnalysis
 
-                match! deps.EnsureMeteo d ct with
-                | Error e -> do! notify (Failed("pobieranie danych pogodowych", e))
-                | Ok cap ->
-                    do! notify RunningAnalysis
-
-                    match! deps.RunAnalysis d cap with
-                    | Ok report -> do! notify (Done report)
-                    | Error e -> do! notify (Failed("analiza", e))
+                match! deps.RunAnalysis d with
+                | Ok report -> do! notify (Done report)
+                | Error e -> do! notify (Failed("analiza", e))
             | None, None -> () // request-magic-link failed; already reported above
         with
         | :? OperationCanceledException -> ()

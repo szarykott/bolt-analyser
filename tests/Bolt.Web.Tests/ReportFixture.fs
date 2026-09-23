@@ -1,8 +1,14 @@
 module Bolt.Web.Tests.ReportFixture
 
 open System
-open Bolt.ETL.Analysis
 open Bolt.Web.Report
+
+let private highlight date fromAddress toAddress distance earnings : RideHighlight =
+    { Date = DateTimeOffset.Parse date
+      FromAddress = Some fromAddress
+      ToAddress = Some toAddress
+      DistanceKm = distance
+      Earnings = earnings }
 
 let report: AnalysisReport = {
     Email = "a@b.pl"
@@ -10,34 +16,22 @@ let report: AnalysisReport = {
     RideCount = 42
     SkippedOrders = [||]
     DateRange = (DateTimeOffset.Parse "2026-01-01Z", DateTimeOffset.Parse "2026-06-30Z")
-    PriceRegression =
-        Some {
-            ObservationCount = 100
-            RSquared = Some 0.42
-            AdjustedRSquared = Some 0.40
-            Effects =
-                [| { Feature = "dystans_km"; Estimate = Some 3.5; PValue = Some 0.00001
-                     CiLow = Some 3.1; CiHigh = Some 3.9 }
-                   { Feature = "deszcz"; Estimate = Some -4.25; PValue = Some 0.012
-                     CiLow = Some -7.5; CiHigh = Some -1.0 }
-                   { Feature = "śnieg"; Estimate = Some 9.9; PValue = Some 0.4
-                     CiLow = Some -2.0; CiHigh = Some 21.8 } |]
-        }
-    HourlyEarnings =
-        Some {
-            Averages = [| { IsWeekend = false; IsNight = false; Rate = 80.0; HourCount = 2 } |]
-            Models =
-                [ { Level = 1
-                    ObservationCount = 90
-                    RSquared = Some 0.31
-                    AdjustedRSquared = Some 0.28
-                    FoldedDistricts = [||]
-                    Effects =
-                        [| { Feature = "weekend"; Estimate = Some 6.5; PValue = Some 0.01
-                             CiLow = Some 2.0; CiHigh = Some 11.0 }
-                           { Feature = "zła_pogoda"; Estimate = Some 3.0; PValue = Some 0.3
-                             CiLow = Some -3.0; CiHigh = Some 9.0 } |] } ]
-        }
+    BasicStatistics =
+        { TotalPaid = 1434.50m
+          TotalTips = 50m
+          TotalCommission = 200m
+          CommissionRate = 200m / 1434.50m
+          TotalEarnings = 1234.50m
+          PaidCash = 400m
+          PaidDigital = 1034.50m
+          TotalDistanceKm = 57.25
+          LongestRide = highlight "2026-06-01T10:00:00+02:00" "Aleja Długa" "Rynek Główny" 20.5 80m
+          ShortestRide = highlight "2026-06-02T10:00:00+02:00" "Dworzec" "Planty" 1.2 15m
+          HighestEarningRide = highlight "2026-06-03T10:00:00+02:00" "Lotnisko" "Centrum" 16.0 100m
+          LowestEarningRide = highlight "2026-06-04T10:00:00+02:00" "Park" "Muzeum" 2.0 5m
+          HourlyAverages =
+              [| { IsWeekend = false; IsNight = false; Earnings = 120.0; WorkedHours = 1.5 }
+                 { IsWeekend = true; IsNight = true; Earnings = 30.0; WorkedHours = 0.5 } |] }
     PickupClusters =
         { Points = [| { Latitude = 50.06123; Longitude = 19.92345; Hour = 8.5 } |]
           Labels = [| 0 |]

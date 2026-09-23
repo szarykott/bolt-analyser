@@ -36,15 +36,13 @@ let private fakeDeps: PipelineDeps<ScrapeSession, ScrapedData> = {
     RequestMagicLink = fun _ _ -> Task.FromResult(Ok())
     AuthenticateWithUrl = fun _ _ _ -> Task.FromResult(Ok())
     ScrapeRides = fun _ _ _ -> Task.FromResult(Ok fakeData)
-    EnsureMeteo = fun _ _ -> Task.FromResult(Ok DateTimeOffset.UtcNow)
-    RunAnalysis = fun _ _ -> Task.FromResult(Ok report)
+    RunAnalysis = fun _ -> Task.FromResult(Ok report)
     RideCountOf = fun _ -> 3
 }
 
 let private makeFactory () =
     (new WebApplicationFactory<Bolt.Web.Program.BoltWebMarker>())
         .WithWebHostBuilder(fun b ->
-            b.UseSetting("SkipStartupDistricts", "true") |> ignore
             b.ConfigureServices(fun services ->
                 services.AddSingleton<PipelineDeps<ScrapeSession, ScrapedData>>(fakeDeps) |> ignore)
             |> ignore)

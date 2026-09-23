@@ -58,11 +58,6 @@ let realDeps: PipelineDeps<ScrapeSession, ScrapedData> = {
     RequestMagicLink = ScrapeSession.requestMagicLink
     AuthenticateWithUrl = ScrapeSession.authenticateWithUrl
     ScrapeRides = fun session progress ct -> scrapeRides session (describeProgress >> progress) ct
-    // Adapter keeps ensureMeteoCoverage loosely coupled: it sees only the date
-    // range, and the job runner never sees order types.
-    EnsureMeteo = fun data ct ->
-        let dates = data.PreviousOrders |> Array.map _.Created
-        ensureMeteoCoverage (Array.min dates, Array.max dates) ct
     RunAnalysis = Report.run
     RideCountOf = fun data -> data.PreviousOrders.Length
 }

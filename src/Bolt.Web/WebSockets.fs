@@ -39,7 +39,6 @@ let private stateFragment (email: string) (state: JobState) =
     | Authenticating -> Views.progressFragment "Logowanie…" ""
     | AwaitingMagicLink error -> Views.magicLinkFragment email error
     | ScrapingRides detail -> Views.progressFragment "Pobieranie przejazdów…" detail
-    | FetchingMeteo -> Views.progressFragment "Pobieranie danych pogodowych…" ""
     | RunningAnalysis -> Views.progressFragment "Trwa analiza…" ""
     | Done report -> Views.reportFragment report
     | Failed(step, message) -> Views.errorFragment email step message

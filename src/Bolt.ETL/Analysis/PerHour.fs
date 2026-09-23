@@ -47,6 +47,13 @@ module PerHour =
         HourCount: int
     }
 
+    type BasicHourlyAverage = {
+        IsWeekend: bool
+        IsNight: bool
+        Earnings: float
+        WorkedHours: float
+    }
+
     type HourlyEffect = {
         Feature: string
         Estimate: float option
@@ -111,7 +118,7 @@ module PerHour =
         let hourFloor (t: DateTimeOffset) =
             DateTimeOffset(t.Year, t.Month, t.Day, t.Hour, 0, 0, t.Offset)
 
-        let private overlapMinutes (aStart: DateTimeOffset) (aEnd: DateTimeOffset) (bStart: DateTimeOffset) (bEnd: DateTimeOffset) =
+        let overlapMinutes (aStart: DateTimeOffset) (aEnd: DateTimeOffset) (bStart: DateTimeOffset) (bEnd: DateTimeOffset) =
             let s = max aStart bStart
             let e = min aEnd bEnd
             if e > s then (e - s).TotalMinutes else 0.0
@@ -135,7 +142,7 @@ module PerHour =
 
         /// Earnings land in hours proportionally to the ride span's overlap
         /// with the hour (a zero-length span pays out in its starting hour).
-        let private earningsInHour (rides: FinishedRide[]) (hour: DateTimeOffset) : float =
+        let earningsInHour (rides: FinishedRide[]) (hour: DateTimeOffset) : float =
             let hourEnd = hour.AddHours 1.0
             rides
             |> Array.sumBy (fun r ->
@@ -334,6 +341,29 @@ module PerHour =
               Rate = earnings / effectiveHours
               HourCount = group.Length })
         |> Array.sortByDescending _.Rate
+
+    /// The report's grouped earnings use the same worked spans and hourly
+    /// earnings allocation as the regression, without weather or districts.
+    let basicHourlyAverages (rides: FinishedRide[]) : BasicHourlyAverage array =
+        let segments = Dataset.workedSegments (fun _ -> "") rides
+        Dataset.eligibleHours rides
+        |> List.choose (fun hour ->
+            let hourEnd = hour.AddHours 1.0
+            let workedHours =
+                segments
+                |> List.sumBy (fun segment ->
+                    Dataset.overlapMinutes segment.SegStart segment.SegEnd hour hourEnd / 60.0)
+            if workedHours <= 0.0 then None
+            else
+                Some(RideTime.isWeekend hour, hour.Hour >= 18 || hour.Hour < 6,
+                     Dataset.earningsInHour rides hour, workedHours))
+        |> List.groupBy (fun (weekend, night, _, _) -> weekend, night)
+        |> List.map (fun ((weekend, night), hours) ->
+            { IsWeekend = weekend
+              IsNight = night
+              Earnings = hours |> List.sumBy (fun (_, _, earnings, _) -> earnings)
+              WorkedHours = hours |> List.sumBy (fun (_, _, _, worked) -> worked) })
+        |> List.toArray
 
     let toAnalyticsRows (rung: Ladder.Rung) (rows: HourRow array) : Map<string, obj> array =
         rows

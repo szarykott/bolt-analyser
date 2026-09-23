@@ -19,12 +19,13 @@ let ``magic link fragment carries email and shows error`` () =
     Assert.Contains("Zaloguj się", html)
 
 [<Fact>]
-let ``report renders three analyses in order with the cluster chart`` () =
+let ``report renders basic statistics before the cluster chart`` () =
     let html = Views.reportFragment report
-    let price = html.IndexOf("id=\"price-regression\"")
-    let hourly = html.IndexOf("id=\"per-hour-earnings\"")
+    let basic = html.IndexOf("id=\"basic-statistics\"")
     let clusters = html.IndexOf("id=\"ride-clusters\"")
-    Assert.True(price >= 0 && price < hourly && hourly < clusters)
+    Assert.True(basic >= 0 && basic < clusters)
+    Assert.DoesNotContain("price-regression", html)
+    Assert.DoesNotContain("per-hour-earnings", html)
     Assert.Contains("data-plotly-target=\"chart-ride-clusters-0\"", html)
     Assert.Contains("Skupiska (punkty: 1, poza skupiskami: 0)", html)
     Assert.Contains("downloadReport()", html)
@@ -38,51 +39,44 @@ let ``report lists skipped orders and escapes their reasons`` () =
     Assert.Contains("Pominięte kursy (1)", html)
 
 [<Fact>]
-let ``price regression sorts significant effects and explains omitted effects`` () =
+let ``report shows completed ride count earnings distance and four hourly groups`` () =
     let html = Views.reportFragment report
-    let rain = html.IndexOf("<td>deszcz</td>")
-    let distance = html.IndexOf("<td>dystans_km</td>")
-    Assert.True(rain >= 0 && rain < distance)
-    Assert.Contains("<td>-4,25</td>", html)
-    Assert.Contains("<td>&lt; 0,001</td>", html)
-    Assert.DoesNotContain("<td>śnieg</td>", html)
-    Assert.Contains("pominięte w tabeli: śnieg", html)
-    Assert.Contains("Model wyjaśnia 42%", html)
-
-[<Fact>]
-let ``hourly earnings render averages and unlocked model only`` () =
-    let html = Views.reportFragment report
+    Assert.Contains("Liczba przejazd&#243;w: </strong>42", html)
+    Assert.Contains("234,50 zł", html)
+    Assert.Contains("57,25 km", html)
+    Assert.Contains("Zapłacone przez pasażer&#243;w", html)
+    Assert.Contains("W tym got&#243;wką", html)
+    Assert.Contains("W tym cyfrowo", html)
+    Assert.Contains("Napiwki", html)
+    Assert.Contains("Prowizja Bolt", html)
+    Assert.Contains("13,94%", html)
+    Assert.Contains("Zarobek kierowcy", html)
+    Assert.Contains("Najdłuższy przejazd", html)
+    Assert.Contains("Najkr&#243;tszy przejazd", html)
+    Assert.Contains("Największy zarobek na przejeździe", html)
+    Assert.Contains("Najmniejszy zarobek na przejeździe", html)
+    Assert.Contains("Aleja Długa → Rynek Gł&#243;wny", html)
     Assert.Contains("dzień roboczy, dzień", html)
     Assert.Contains("<td>80,00</td>", html)
-    Assert.Contains("poziom 1", html)
-    Assert.Contains("<td>weekend</td>", html)
-    Assert.DoesNotContain("<td>zła_pogoda</td>", html)
-    Assert.Contains("pominięte w tabeli: zła_pogoda", html)
-    Assert.Contains("liczba godzin", html)
+    Assert.Contains("<td>1,50</td>", html)
+    Assert.Contains("dzień roboczy, noc", html)
+    Assert.Contains("weekend, dzień", html)
+    Assert.Contains("weekend, noc", html)
+    Assert.Contains("<td>–</td><td>0,00</td>", html)
 
 [<Fact>]
-let ``hourly earnings without unlocked models keeps only averages and guidance`` () =
-    let hourly = { report.HourlyEarnings.Value with Models = [] }
-    let html = Views.reportFragment { report with HourlyEarnings = Some hourly }
-    Assert.Contains("Średnie zarobki na godzinę pracy", html)
-    Assert.DoesNotContain("poziom 1", html)
-    Assert.Contains("za mało godzin jazdy", html)
+let ``highlight addresses are HTML encoded`` () =
+    let longest = { report.BasicStatistics.LongestRide with FromAddress = Some "<adres>" }
+    let stats = { report.BasicStatistics with LongestRide = longest }
+    let html = Views.reportFragment { report with BasicStatistics = stats }
+    Assert.Contains("&lt;adres&gt;", html)
+    Assert.DoesNotContain("<adres>", html)
 
 [<Fact>]
-let ``coefficient names are HTML encoded`` () =
-    let price = report.PriceRegression.Value
-    let effect = { price.Effects[0] with Feature = "<cecha>" }
-    let html = Views.reportFragment { report with PriceRegression = Some { price with Effects = [| effect |] } }
-    Assert.Contains("&lt;cecha&gt;", html)
-    Assert.DoesNotContain("<cecha>", html)
-
-[<Fact>]
-let ``missing weather yields empty analysis sections with explanation`` () =
-    let html = Views.reportFragment { report with PriceRegression = None; HourlyEarnings = None }
-    Assert.Contains("Żaden przejazd nie mieści się w zakresie danych pogodowych.", html)
-    Assert.DoesNotContain("Wpływ cech na cenę przejazdu", html)
-    Assert.DoesNotContain("Średnie zarobki na godzinę pracy", html)
-    Assert.Contains("Mapa skupisk odbior&#243;w", html)
+let ``hourly groups stay visible without observations`` () =
+    let stats = { report.BasicStatistics with HourlyAverages = [||] }
+    let html = Views.reportFragment { report with BasicStatistics = stats }
+    Assert.Equal(4, html.Split("<td>–</td><td>0,00</td>").Length - 1)
 
 [<Fact>]
 let ``index page wires htmx websocket and panel`` () =
