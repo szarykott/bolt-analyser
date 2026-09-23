@@ -1,9 +1,9 @@
 module Bolt.ETL.Tests.PerHourTests
 
 open System
+open Bolt.ETL.Analytics
 open Xunit
 open Bolt.ETL.Analysis
-open Bolt.ETL.Analytics
 open Bolt.Models
 open Bolt.Models.Meteo
 
@@ -283,36 +283,18 @@ let ``rung0 groups by weekend and night with fill weighted means`` () =
         [| { hourRow "A" Mild false false with Rate = 60.0 }
            { hourRow "A" Mild false false with Rate = 120.0; Fill = 0.5 }
            { hourRow "A" Mild false false with Rate = 40.0; IsWeekend = true; IsNight = true } |]
-    let table = PerHour.Rung0.table rows
-    Assert.Equal<string list>([ "kiedy"; "zł za godzinę"; "liczba godzin" ], table.Headers)
-    Assert.Contains<string list>([ "dzień roboczy, dzień"; "80,00"; "2" ], table.Rows)
-    Assert.Contains<string list>([ "weekend, noc"; "40,00"; "1" ], table.Rows)
+    let averages = PerHour.hourlyAverages rows
+    Assert.Contains(averages, fun avg -> not avg.IsWeekend && not avg.IsNight && avg.Rate = 80.0 && avg.HourCount = 2)
+    Assert.Contains(averages, fun avg -> avg.IsWeekend && avg.IsNight && avg.Rate = 40.0 && avg.HourCount = 1)
 
 [<Fact>]
 let ``rung0 sorts groups by rate descending`` () =
     let rows =
         [| { hourRow "A" Mild false false with Rate = 30.0 }
            { hourRow "A" Mild false false with Rate = 90.0; IsNight = true } |]
-    let table = PerHour.Rung0.table rows
-    Assert.Equal("dzień roboczy, noc", table.Rows[0][0])
-    Assert.Equal("dzień roboczy, dzień", table.Rows[1][0])
-
-// Display module tests
-let private coef name c p lo hi : Coefficient =
-    { Name = name; Coef = c; StdErr = Some 0.1; TValue = Some 1.0
-      PValue = p; CiLow = lo; CiHigh = hi }
-
-let private cannedWls: OlsResponse = {
-    NObservations = 90
-    RSquared = Some 0.31
-    AdjRSquared = Some 0.28
-    FStatistic = Some 9.0
-    FPvalue = Some 0.001
-    Coefficients =
-        [| coef "const" (Some 40.0) (Some 0.0) (Some 35.0) (Some 45.0)
-           coef "weekend" (Some 6.5) (Some 0.01) (Some 2.0) (Some 11.0)
-           coef "zła_pogoda" (Some 3.0) (Some 0.3) (Some -3.0) (Some 9.0) |]
-}
+    let averages = PerHour.hourlyAverages rows
+    Assert.True averages[0].IsNight
+    Assert.False averages[1].IsNight
 
 let private rung1 = PerHour.Ladder.rungColumns (Array.init 30 (fun _ -> { hourRow "A" Mild true false with IsWeekend = true })) 1
 
@@ -320,7 +302,7 @@ let private rung1 = PerHour.Ladder.rungColumns (Array.init 30 (fun _ -> { hourRo
 let ``toAnalyticsRows emits target weight and rung columns`` () =
     let rows =
         [| { hourRow "A" Mild true false with IsWeekend = true; Fill = 0.5; Rate = 80.0 } |]
-    let analyticsRow = (PerHour.Display.toAnalyticsRows rung1 rows)[0]
+    let analyticsRow = (PerHour.toAnalyticsRows rung1 rows)[0]
     Assert.Equal<Set<string>>(
         Set [ "stawka_pln_h"; "waga"; "weekend"; "zła_pogoda" ],
         analyticsRow |> Map.toSeq |> Seq.map fst |> Set.ofSeq)
@@ -329,16 +311,18 @@ let ``toAnalyticsRows emits target weight and rung columns`` () =
     Assert.Equal(box 1.0, analyticsRow["weekend"])
 
 [<Fact>]
-let ``coefficientsTable filters insignificant and titles the rung`` () =
-    let table = PerHour.Display.coefficientsTable rung1 cannedWls
-    Assert.Contains("poziom 1", table.Title)
-    Assert.Equal(1, table.Rows.Length)  // const excluded, zła_pogoda p=0.3 excluded
-    Assert.Equal<string list>(
-        [ "weekend"; "6,50"; "od 2,00 do 11,00"; "0,010" ], table.Rows[0])
-    Assert.Contains("zła_pogoda", List.last table.Notes)
-
-[<Fact>]
-let ``modelStatsTable counts hours not rides`` () =
-    let table = PerHour.Display.modelStatsTable cannedWls
-    Assert.Contains<string list>([ "liczba godzin"; "90" ], table.Rows)
-    Assert.Contains<string list>([ "R²"; "0,31" ], table.Rows)
+let ``hourly model keeps all effects and fit values`` () =
+    let coefficient name p : Coefficient =
+        { Name = name; Coef = Some 6.5; StdErr = None; TValue = None
+          PValue = p; CiLow = Some 2.0; CiHigh = Some 11.0 }
+    let response: OlsResponse =
+        { NObservations = 90; RSquared = Some 0.31; AdjRSquared = Some 0.28
+          FStatistic = None; FPvalue = None
+          Coefficients = [| coefficient "const" (Some 0.0); coefficient "weekend" (Some 0.3) |] }
+    let model = PerHour.modelFromResponse rung1 response
+    Assert.Equal(1, model.Level)
+    Assert.Equal(90, model.ObservationCount)
+    Assert.Equal(Some 0.31, model.RSquared)
+    Assert.Single model.Effects |> ignore
+    Assert.Equal("weekend", model.Effects[0].Feature)
+    Assert.Equal(Some 0.3, model.Effects[0].PValue)

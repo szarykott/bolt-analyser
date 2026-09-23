@@ -1,10 +1,11 @@
 namespace Bolt.Infrastructure.Repository
 
 open System
+open Bolt.Models.BoltApi
 open Bolt.Infrastrucutre.storage.Storage
 
 module ScrapeMetadataRepository =
-    type ScrapeMetadata = { ScrapedAt: DateTimeOffset }
+    type ScrapeMetadata = { ScrapedAt: DateTimeOffset; SkippedOrders: SkippedOrder[] option }
 
     let private fileName = "metadata.json"
 

@@ -25,4 +25,8 @@
     <ProjectReference Include="..\Bolt.Models\Bolt.Models.fsproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bolt.Scraper.Tests" />
+  </ItemGroup>
+
 </Project>

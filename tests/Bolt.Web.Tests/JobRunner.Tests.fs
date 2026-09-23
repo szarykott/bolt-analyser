@@ -6,17 +6,9 @@ open System.Threading
 open System.Threading.Channels
 open System.Threading.Tasks
 open Xunit
-open Bolt.ETL.Analysis
 open Bolt.Web
 open Bolt.Web.Jobs
-
-let private report: AnalysisReport = {
-    Email = "a@b.pl"
-    GeneratedAt = DateTimeOffset.UtcNow
-    RideCount = 1
-    DateRange = (DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
-    Sections = []
-}
+open Bolt.Web.Tests.ReportFixture
 
 let private cap = DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
 let private ok () : Task<Result<unit, string>> = Task.FromResult(Ok())

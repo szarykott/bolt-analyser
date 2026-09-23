@@ -1,25 +1,33 @@
 module Bolt.ETL.Tests.RideClusteringTests
 
+open System
 open Xunit
 open Bolt.ETL.Analysis
 open Bolt.ETL.Analytics
 
-let private canned: StDbscanResponse = {
-    Labels = [| 0; 0; 1; -1 |]
-    NPoints = 4
-    NClusters = 2
-    NNoise = 1
-    Clusters =
-        [| { Id = 0; Size = 2; CentroidLatitude = 50.06123; CentroidLongitude = 19.92345; MeanHour = 8.5 }
-           { Id = 1; Size = 5; CentroidLatitude = 50.07; CentroidLongitude = 19.95; MeanHour = 22.25 } |]
-}
+[<Fact>]
+let ``pickup points keep coordinates and hour of day`` () =
+    let source: RideClustering.RidesDataSource = {
+        Rows = [| { Latitude = 50.06123
+                    Longitude = 19.92345
+                    Time = DateTimeOffset.Parse "2026-07-12T08:30:00Z" } |]
+    }
+    let point = RideClustering.toPoints source |> Array.head
+    Assert.Equal(50.06123, point.Latitude)
+    Assert.Equal(19.92345, point.Longitude)
+    Assert.Equal(8.5, point.Hour)
 
 [<Fact>]
-let ``clusterTable sorts by size descending and formats invariantly`` () =
-    let table = RideClustering.clusterTable canned
-    Assert.Equal<string list>([ "1"; "5"; "50.07000"; "19.95000"; "22.25" ], table.Rows[0])
-    Assert.Equal<string list>([ "0"; "2"; "50.06123"; "19.92345"; "8.50" ], table.Rows[1])
-    Assert.Contains("poza skupiskami: 1", table.Title)
-    Assert.Equal<string list>(
-        [ "skupisko"; "liczba przejazdów"; "szer. geogr."; "dł. geogr."; "średnia godzina" ],
-        table.Headers)
+let ``cluster response keeps labels noise and centers as data`` () =
+    let points: RideClustering.PickupPoint array =
+        [| { Latitude = 50.0; Longitude = 19.0; Hour = 8.5 } |]
+    let response: StDbscanResponse =
+        { Labels = [| 2 |]; NPoints = 1; NClusters = 1; NNoise = 0
+          Clusters =
+            [| { Id = 2; Size = 1; CentroidLatitude = 50.0
+                 CentroidLongitude = 19.0; MeanHour = 8.5 } |] }
+    let result = RideClustering.fromAnalyticsResponse points response
+    Assert.Equal<int[]>([| 2 |], result.Labels)
+    Assert.Equal(0, result.NoiseCount)
+    Assert.Equal(2, result.Clusters[0].Id)
+    Assert.Equal(8.5, result.Clusters[0].MeanHour)

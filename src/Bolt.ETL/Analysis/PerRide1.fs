@@ -3,15 +3,13 @@ namespace Bolt.ETL.Analysis
 module PerRide1 = 
 
     open System
-    open System.Globalization
-    open System.Threading.Tasks
     open Bolt.ETL
     open Bolt.ETL.Geo
     open Bolt.ETL.Geo.DistrictAssignment
     open Bolt.ETL.Meteo.Model
     open Bolt.ETL.Shared.Model
-    open Bolt.Infrastructure.Repository
     open Bolt.Models
+    open Bolt.Models.Geo
     open Bolt.Models.Meteo
     
     type RideRow = {
@@ -29,6 +27,28 @@ module PerRide1 =
     
     type RidesDataSource = {
         Rows: RideRow array
+    }
+
+    type Precipitation = Dry | Rain | Snow
+
+    type BreakdownKey =
+        | District of DistrictName
+        | TimeOfDay of PartOfDay
+        | Weekday of DayOfWeek
+        | Weather of TemperatureBucket * Precipitation
+
+    type Breakdown = {
+        Key: BreakdownKey
+        RideCount: int
+        AveragePricePln: float
+        AveragePricePerKm: float
+    }
+
+    type AnalysisResult = {
+        ByDistrict: Breakdown list
+        ByPartOfDay: Breakdown list
+        ByDayOfWeek: Breakdown list
+        ByWeather: Breakdown list
     }
     
     module RideRow =
@@ -51,46 +71,29 @@ module PerRide1 =
                 Temperature = TemperatureBucket.fromCelcius weatherData.Temperature
             }
             
-    let prepareRideAnalysisSource (rides: FinishedRide[]) : RidesDataSource =
-        let meteo = (MeteoRepository.get ()).Value
-        let districts = (DistrictsRepository.get ()).Value
-
+    let prepareRideAnalysisSource (meteo: Weather) (districts: District seq) (rides: FinishedRide[]) : RidesDataSource =
         let weatherProvider t = (Weather.getNearestDataPoint meteo t).Value
         let districtProvider = DistrictAssignment.assignCoordinatesToDistrict districts
 
         { Rows = rides |> Array.map (RideRow.fromRide weatherProvider districtProvider) }
     
-    let private fmt (v: float) = v.ToString("F2", CultureInfo.InvariantCulture)
+    let breakdown (key: RideRow -> BreakdownKey) (rows: RideRow array) : Breakdown list =
+        rows
+        |> Array.groupBy key
+        |> Array.sortByDescending (fun (_, rides) -> rides.Length)
+        |> Array.map (fun (group, rides) ->
+            { Key = group
+              RideCount = rides.Length
+              AveragePricePln = rides |> Array.averageBy (fun r -> float r.PricePln)
+              AveragePricePerKm = rides |> Array.averageBy (fun r -> float r.PricePerKm) })
+        |> List.ofArray
 
-    let breakdownTable (title: string) (key: RideRow -> string) (rows: RideRow array) : ResultTable =
-        let dataRows =
-            rows
-            |> Array.groupBy key
-            |> Array.sortByDescending (fun (_, rs) -> rs.Length)
-            |> Array.map (fun (k, rs) ->
-                [ k
-                  string rs.Length
-                  fmt (rs |> Array.averageBy (fun r -> float r.PricePln))
-                  fmt (rs |> Array.averageBy (fun r -> float r.PricePerKm)) ])
-            |> List.ofArray
+    let private weather (r: RideRow) =
+        let precipitation = if r.Snow then Snow elif r.Rain then Rain else Dry
+        Weather(r.Temperature, precipitation)
 
-        { Title = title
-          Headers = [ "group"; "rides"; "avg price [PLN]"; "avg [PLN/km]" ]
-          Rows = dataRows
-          Notes = [] }
-
-    let private weatherLabel (r: RideRow) =
-        let precipitation = if r.Snow then "snow" elif r.Rain then "rain" else "dry"
-        $"{r.Temperature}/{precipitation}"
-
-    let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
-        Task.FromResult
-            { Id = "ride-stats"
-              Title = "Ride statistics"
-              Description = "Ride counts and average earnings broken down by pickup district, time and weather."
-              Charts = []
-              Tables =
-                [ breakdownTable "By pickup district" (fun r -> r.PickupDistrict.Value) source.Rows
-                  breakdownTable "By part of day" (fun r -> string r.PartOfDay) source.Rows
-                  breakdownTable "By day of week" (fun r -> string r.DayOfWeek) source.Rows
-                  breakdownTable "By weather" weatherLabel source.Rows ] }
+    let run (source: RidesDataSource) : AnalysisResult =
+        { ByDistrict = breakdown (fun r -> District r.PickupDistrict) source.Rows
+          ByPartOfDay = breakdown (fun r -> TimeOfDay r.PartOfDay) source.Rows
+          ByDayOfWeek = breakdown (fun r -> Weekday r.DayOfWeek) source.Rows
+          ByWeather = breakdown weather source.Rows }

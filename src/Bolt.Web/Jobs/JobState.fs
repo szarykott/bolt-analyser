@@ -3,7 +3,7 @@ module Bolt.Web.Jobs
 open System
 open System.Threading
 open System.Threading.Tasks
-open Bolt.ETL.Analysis
+open Bolt.Web.Report
 
 type JobState =
     | CheckingCache

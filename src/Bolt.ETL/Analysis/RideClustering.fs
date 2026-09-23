@@ -3,13 +3,10 @@ namespace Bolt.ETL.Analysis
 module RideClustering =
 
     open System
-    open System.Globalization
     open System.Threading.Tasks
     open Bolt.ETL
     open Bolt.ETL.Analytics
-    open Bolt.ETL.Plotting
     open Bolt.Models
-    open Plotly.NET
 
     type RideRow = {
         Latitude: float
@@ -19,6 +16,27 @@ module RideClustering =
 
     type RidesDataSource = {
         Rows: RideRow array
+    }
+
+    type PickupPoint = {
+        Latitude: float
+        Longitude: float
+        Hour: float
+    }
+
+    type Cluster = {
+        Id: int
+        Size: int
+        CentroidLatitude: float
+        CentroidLongitude: float
+        MeanHour: float
+    }
+
+    type AnalysisResult = {
+        Points: PickupPoint array
+        Labels: int array
+        NoiseCount: int
+        Clusters: Cluster array
     }
 
     module RideRow =
@@ -33,7 +51,7 @@ module RideClustering =
     let prepareRideAnalysisSource (rides: FinishedRide[]) : RidesDataSource =
         { Rows = rides |> Array.map RideRow.fromRide }
 
-    let toStPoints (data: RidesDataSource) : StPoint array =
+    let toPoints (data: RidesDataSource) : PickupPoint array =
         data.Rows
         |> Array.map (fun r -> {
             Latitude = r.Latitude
@@ -41,43 +59,29 @@ module RideClustering =
             Hour = float r.Time.Hour + float r.Time.Minute / 60.0
         })
 
-    let clusterTable (response: StDbscanResponse) : ResultTable =
-        { Title = $"Skupiska (punkty: {response.NPoints}, poza skupiskami: {response.NNoise})"
-          Headers = [ "skupisko"; "liczba przejazdów"; "szer. geogr."; "dł. geogr."; "średnia godzina" ]
-          Rows =
-            response.Clusters
-            |> Array.sortByDescending _.Size
-            |> Array.map (fun c ->
-                [ string c.Id
-                  string c.Size
-                  c.CentroidLatitude.ToString("F5", CultureInfo.InvariantCulture)
-                  c.CentroidLongitude.ToString("F5", CultureInfo.InvariantCulture)
-                  c.MeanHour.ToString("F2", CultureInfo.InvariantCulture) ])
-            |> List.ofArray
-          Notes = [] }
+    let fromAnalyticsResponse (points: PickupPoint array) (response: StDbscanResponse) : AnalysisResult =
+        { Points = points
+          Labels = response.Labels
+          NoiseCount = response.NNoise
+          Clusters = response.Clusters |> Array.map (fun c ->
+            { Id = c.Id
+              Size = c.Size
+              CentroidLatitude = c.CentroidLatitude
+              CentroidLongitude = c.CentroidLongitude
+              MeanHour = c.MeanHour }) }
 
-    let buildSection (source: RidesDataSource) : Task<AnalysisSection> =
+    let run (source: RidesDataSource) : Task<AnalysisResult> =
         task {
-            let points = toStPoints source
+            let points = toPoints source
 
             let! response =
                 AnalyticsClient.stDbscan {
-                    Points = points
+                    Points = points |> Array.map (fun p ->
+                        { Latitude = p.Latitude; Longitude = p.Longitude; Hour = p.Hour })
                     EpsKm = 0.7
                     EpsHours = 1
                     MinSamples = 5
                 }
 
-            let chart =
-                [ ClusterMap.ridePointsLayer points response
-                  ClusterMap.centroidLayer response ]
-                |> Chart.combine
-                |> ClusterMap.withMapStyle points
-
-            return
-                { Id = "ride-clusters"
-                  Title = "Skupiska odbiorów pasażerów"
-                  Description = "Przestrzenno-czasowe skupiska (ST-DBSCAN) miejsc odbioru pasażerów."
-                  Charts = [ { Title = "Mapa skupisk odbiorów"; PlotlyFigureJson = GenericChart.toFigureJson chart } ]
-                  Tables = [ clusterTable response ] }
+            return fromAnalyticsResponse points response
         }

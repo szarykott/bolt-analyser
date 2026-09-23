@@ -22,12 +22,12 @@ let ``isFresh is false when no metadata exists`` () =
 let ``isFresh is true within the window`` () =
     withTempRoot (fun () ->
         let now = DateTimeOffset.UtcNow
-        ScrapeMetadataRepository.save "a@b.pl" { ScrapedAt = now.AddDays -2.0 }
+        ScrapeMetadataRepository.save "a@b.pl" { ScrapedAt = now.AddDays -2.0; SkippedOrders = None }
         Assert.True(ScrapeMetadataRepository.isFresh now (TimeSpan.FromDays 14.0) "a@b.pl"))
 
 [<Fact>]
 let ``isFresh is false outside the window`` () =
     withTempRoot (fun () ->
         let now = DateTimeOffset.UtcNow
-        ScrapeMetadataRepository.save "a@b.pl" { ScrapedAt = now.AddDays -15.0 }
+        ScrapeMetadataRepository.save "a@b.pl" { ScrapedAt = now.AddDays -15.0; SkippedOrders = None }
         Assert.False(ScrapeMetadataRepository.isFresh now (TimeSpan.FromDays 14.0) "a@b.pl"))

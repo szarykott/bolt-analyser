@@ -1,14 +1,11 @@
-namespace Bolt.ETL.Plotting
+namespace Bolt.Web
 
-// Composable map layers for clustering results. Layers depend only on the
-// analytics contracts (StPoint / StDbscanResponse), so any analysis speaking
-// that contract can be plotted. Compose with Chart.combine, style with
-// withMapStyle.
+// Plotly layers for the pickup clustering result shown in the Web report.
 
 module ClusterMap =
 
     open System
-    open Bolt.ETL.Analytics
+    open Bolt.ETL.Analysis.RideClustering
     open Plotly.NET
     open Plotly.NET.LayoutObjects
 
@@ -25,13 +22,13 @@ module ClusterMap =
         let minutes = (int (Math.Round(h * 60.0)) % (24 * 60) + 24 * 60) % (24 * 60)
         sprintf "%02d:%02d" (minutes / 60) (minutes % 60)
 
-    let ridePointsLayer (points: StPoint array) (response: StDbscanResponse) : GenericChart =
+    let ridePointsLayer (result: AnalysisResult) : GenericChart =
         let statsById =
-            response.Clusters
+            result.Clusters
             |> Array.map (fun c -> c.Id, c)
             |> Map.ofArray
 
-        let traceOf (label: int) (members: StPoint array) =
+        let traceOf (label: int) (members: PickupPoint array) =
             let name, color, opacity =
                 match Map.tryFind label statsById with
                 | Some stats ->
@@ -39,11 +36,11 @@ module ClusterMap =
                     clusterColor label,
                     0.8
                 | None ->
-                    $"Noise · n={response.NNoise}",
+                    $"Noise · n={result.NoiseCount}",
                     Color.fromHex "#999999",
                     0.35
 
-            let hoverOf (p: StPoint) =
+            let hoverOf (p: PickupPoint) =
                 if label < 0 then $"Noise · {formatHour p.Hour}"
                 else $"Cluster {label} · {formatHour p.Hour}"
 
@@ -57,14 +54,14 @@ module ClusterMap =
                 UseDefaults = false
             )
 
-        Array.zip points response.Labels
+        Array.zip result.Points result.Labels
         |> Array.groupBy snd
         |> Array.sortBy (fun (_, p) -> p.Length)
         |> Array.map (fun (label, members) -> traceOf label (members |> Array.map fst))
         |> Chart.combine
 
-    let centroidLayer (response: StDbscanResponse) : GenericChart =
-        let sizes = response.Clusters |> Array.map _.Size
+    let centroidLayer (result: AnalysisResult) : GenericChart =
+        let sizes = result.Clusters |> Array.map _.Size
         let minSize = if sizes.Length = 0 then 0 else Array.min sizes
         let maxSize = if sizes.Length = 0 then 0 else Array.max sizes
 
@@ -73,7 +70,7 @@ module ClusterMap =
             if maxSize = minSize then 14.0
             else 10.0 + 14.0 * float (size - minSize) / float (maxSize - minSize)
 
-        response.Clusters
+        result.Clusters
         |> Array.map (fun c ->
             Chart.PointMapbox(
                 longitudes = [ c.CentroidLongitude ],
@@ -91,7 +88,7 @@ module ClusterMap =
                 )))
         |> Chart.combine
 
-    let withMapStyle (points: StPoint array) (chart: GenericChart) : GenericChart =
+    let withMapStyle (points: PickupPoint array) (chart: GenericChart) : GenericChart =
         let center =
             if points.Length = 0 then (0.0, 0.0)
             else

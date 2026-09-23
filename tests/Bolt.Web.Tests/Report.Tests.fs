@@ -1,9 +1,9 @@
-module Bolt.ETL.Tests.AnalysisPipelineTests
+module Bolt.Web.Tests.ReportTests
 
 open System
 open Xunit
-open Bolt.ETL
 open Bolt.Models
+open Bolt.Web
 
 let private rideAt (created: DateTimeOffset) : FinishedRide = {
     Payment =
@@ -27,4 +27,4 @@ let ``weatherEligible keeps rides at or before the cap`` () =
     let after = rideAt (cap.AddDays 1.0)
     Assert.Equal<FinishedRide[]>(
         [| before; atCap |],
-        AnalysisPipeline.weatherEligible cap [| before; atCap; after |])
+        Report.weatherEligible cap [| before; atCap; after |])

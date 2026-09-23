@@ -10,18 +10,10 @@ open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Mvc.Testing
 open Microsoft.Extensions.DependencyInjection
 open Xunit
-open Bolt.ETL.Analysis
 open Bolt.Models.BoltApi
 open Bolt.Scraper.ScrapePipeline
 open Bolt.Web.Jobs
-
-let private report: AnalysisReport = {
-    Email = "a@b.pl"
-    GeneratedAt = DateTimeOffset.UtcNow
-    RideCount = 3
-    DateRange = (DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
-    Sections = []
-}
+open Bolt.Web.Tests.ReportFixture
 
 let private fakeData: ScrapedData = {
     Email = "a@b.pl"
@@ -30,6 +22,7 @@ let private fakeData: ScrapedData = {
     OrderHistory = [||]
     PreviousOrders = [||]
     PastOrderDetails = [||]
+    SkippedOrders = [||]
 }
 
 // Fake deps: cached data, analysis returns instantly. CreateSession never

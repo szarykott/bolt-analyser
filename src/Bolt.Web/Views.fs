@@ -1,10 +1,7 @@
 module Bolt.Web.Views
 
-open Bolt.ETL.Analysis
+open Bolt.Web.Report
 open Giraffe.ViewEngine
-
-// JSON that lands inside a <script> block must not terminate it early.
-let private scriptSafeJson (json: string) = json.Replace("</", "<\\/")
 
 let private render = RenderView.AsString.htmlNode
 
@@ -80,34 +77,6 @@ let errorFragment (email: string) (step: string) (message: string) =
     ]
     |> render
 
-let private tableNodes (t: ResultTable) = [
-    h4 [] [ str t.Title ]
-    table [] [
-        thead [] [ tr [] [ for h in t.Headers -> th [] [ str h ] ] ]
-        tbody [] [ for r in t.Rows -> tr [] [ for c in r -> td [] [ str c ] ] ]
-    ]
-    if not (List.isEmpty t.Notes) then
-        ul [ _class "notes" ] [ for n in t.Notes -> li [] [ str n ] ]
-]
-
-let private chartNodes (sectionId: string) (index: int) (c: ResultChart) =
-    let chartId = $"chart-{sectionId}-{index}"
-
-    [
-        h4 [] [ str c.Title ]
-        div [ _id chartId; _style "width:100%;height:800px" ] []
-        script [ _type "application/json"; attr "data-plotly-target" chartId ] [
-            rawText (scriptSafeJson c.PlotlyFigureJson)
-        ]
-    ]
-
-let private sectionNode (s: AnalysisSection) =
-    let charts = s.Charts |> List.mapi (chartNodes s.Id) |> List.concat
-    let tables = s.Tables |> List.collect tableNodes
-
-    section [ _id s.Id ]
-        ([ h2 [] [ str s.Title ]; p [] [ str s.Description ] ] @ charts @ tables)
-
 let reportFragment (report: AnalysisReport) =
     let fromDate, toDate = report.DateRange
 
@@ -119,10 +88,19 @@ let reportFragment (report: AnalysisReport) =
                 + $"""raport wygenerowano {report.GeneratedAt.ToString "yyyy-MM-dd HH:mm"} UTC."""
             )
         ]
+        if not (Array.isEmpty report.SkippedOrders) then
+            section [] [
+                h2 [] [ str $"Pominięte kursy ({report.SkippedOrders.Length})" ]
+                p [] [ str "Nie udało się pobrać szczegółów tych kursów po trzech próbach. Pominięto je w analizie." ]
+                ul [] [
+                    for order in report.SkippedOrders do
+                        li [] [ str $"Kurs {order.OrderId}: {order.Reason}" ]
+                ]
+            ]
     ]
 
     panel [
-        div [ _id "report-content" ] (header @ (report.Sections |> List.map sectionNode))
+        div [ _id "report-content" ] (header @ ReportViews.sections report)
         button [ _onclick "downloadReport()" ] [ str "Pobierz raport" ]
     ]
     |> render

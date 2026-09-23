@@ -18,7 +18,6 @@
         <Compile Include="PerRide2.Tests.fs" />
         <Compile Include="PerHour.Tests.fs" />
         <Compile Include="RideClustering.Tests.fs" />
-        <Compile Include="AnalysisPipeline.Tests.fs" />
     </ItemGroup>
 
     <ItemGroup>

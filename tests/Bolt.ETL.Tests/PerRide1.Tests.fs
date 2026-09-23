@@ -22,17 +22,21 @@ let private row district price distance : PerRide1.RideRow = {
 }
 
 [<Fact>]
-let ``breakdownTable groups, counts and sorts descending`` () =
+let ``breakdown groups counts averages and sorts descending`` () =
     let rows = [| row "A" 10m 2.0; row "A" 20m 4.0; row "B" 30m 5.0 |]
-    let table = PerRide1.breakdownTable "By district" (fun r -> r.PickupDistrict.Value) rows
-    Assert.Equal("By district", table.Title)
-    Assert.Equal<string list>([ "group"; "rides"; "avg price [PLN]"; "avg [PLN/km]" ], table.Headers)
-    Assert.Equal<string list>([ "A"; "2"; "15.00"; "5.00" ], table.Rows[0])
-    Assert.Equal<string list>([ "B"; "1"; "30.00"; "6.00" ], table.Rows[1])
+    let groups = PerRide1.breakdown (fun r -> PerRide1.District r.PickupDistrict) rows
+    Assert.Equal(2, groups.Length)
+    Assert.Equal(PerRide1.District(DistrictName "A"), groups[0].Key)
+    Assert.Equal(2, groups[0].RideCount)
+    Assert.Equal(15.0, groups[0].AveragePricePln)
+    Assert.Equal(5.0, groups[0].AveragePricePerKm)
+    Assert.Equal(PerRide1.District(DistrictName "B"), groups[1].Key)
 
 [<Fact>]
-let ``buildSection produces four tables and no charts`` () =
-    let section = (PerRide1.buildSection { Rows = [| row "A" 10m 2.0 |] }).GetAwaiter().GetResult()
-    Assert.Equal("ride-stats", section.Id)
-    Assert.Empty section.Charts
-    Assert.Equal(4, section.Tables.Length)
+let ``run produces four independent typed breakdowns`` () =
+    let result = PerRide1.run { Rows = [| row "A" 10m 2.0 |] }
+    Assert.Single result.ByDistrict |> ignore
+    Assert.Single result.ByPartOfDay |> ignore
+    Assert.Single result.ByDayOfWeek |> ignore
+    Assert.Single result.ByWeather |> ignore
+    Assert.Equal(PerRide1.Weather(Mild, PerRide1.Dry), result.ByWeather.Head.Key)

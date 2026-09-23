@@ -5,8 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Report.fs" />
     <Compile Include="Jobs/JobState.fs" />
     <Compile Include="Jobs/JobRunner.fs" />
+    <Compile Include="ClusterMap.fs" />
+    <Compile Include="ReportViews.fs" />
     <Compile Include="Views.fs" />
     <Compile Include="Pipeline.fs" />
     <Compile Include="WebSockets.fs" />
@@ -22,6 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="Giraffe.ViewEngine" Version="1.4.0" />
+    <PackageReference Include="Plotly.NET" Version="5.1.0" />
   </ItemGroup>
 
 </Project>

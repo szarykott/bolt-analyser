@@ -2,6 +2,7 @@ module Bolt.Scraper.ScrapePipeline
 
 open System
 open System.Net.Http
+open System.Text.Json
 open System.Threading
 open System.Threading.Tasks
 open Bolt.Infrastructure.Repository
@@ -21,6 +22,7 @@ type ScrapeProgress =
     | ScrapingActivityHours
     | ScrapingOrderHistory
     | ScrapingOrderDetails of current: int * total: int
+    | ScrapingOrderFailed of current: int * total: int * orderId: int64 * reason: string
 
 type ScrapeSession = {
     Config: ApiConfig
@@ -31,6 +33,76 @@ let private mapApiError (t: Task<Result<'a, ApiError>>) : Task<Result<'a, string
     task {
         let! r = t
         return Result.mapError (fun e -> e.ToString()) r
+    }
+
+let private describeApiError = function
+    | HttpError(status, _) -> $"HTTP {int status}"
+    | BoltError response -> response.Message
+    | NetworkError ex
+    | DeserializationError ex -> ex.Message
+    | AuthError message -> message
+
+let internal fetchOrderDetails
+    (config: ApiConfig)
+    (handles: HistoryOrderHandle[])
+    (report: ScrapeProgress -> Task)
+    (ct: CancellationToken)
+    : Task<Result<(int * JsonElement * JsonElement)[] * SkippedOrder[], ApiError>> =
+    task {
+        let bolt = BoltClient.fromConfig config
+        use _cancelRequests = ct.Register(fun () -> config.HttpClient.CancelPendingRequests())
+        let results = Array.create handles.Length None
+        let failures = Array.create handles.Length None
+        let mutable completed = 0
+        use progressLock = new SemaphoreSlim(1, 1)
+
+        let fetchWithRetry (handle: HistoryOrderHandle) (token: CancellationToken) =
+            task {
+                let mutable attempt = 0
+                let mutable outcome: Result<JsonElement * JsonElement, ApiError> option = None
+                while attempt < 3 && outcome.IsNone do
+                    token.ThrowIfCancellationRequested()
+                    let! result = taskResult {
+                        let! p = BoltClient.getPreviousOrder bolt handle
+                        token.ThrowIfCancellationRequested()
+                        let! d = BoltClient.getPastOrderDetails bolt handle
+                        return p, d
+                    }
+                    attempt <- attempt + 1
+                    match result with
+                    | Ok _ -> outcome <- Some result
+                    | Error _ when attempt = 3 -> outcome <- Some result
+                    | _ -> ()
+                return outcome.Value
+            }
+
+        let fetch (index, handle: HistoryOrderHandle) (token: CancellationToken) =
+            ValueTask(task {
+                let! result = fetchWithRetry handle token
+
+                match result with
+                | Error e ->
+                    failures[index] <- Some { OrderId = handle.OrderHandle.OrderId; Reason = describeApiError e }
+                | Ok(p, d) -> results[index] <- Some(index, p, d)
+
+                do! progressLock.WaitAsync token
+                try
+                    completed <- completed + 1
+                    match result with
+                    | Error e ->
+                        do! report (ScrapingOrderFailed(completed, handles.Length, handle.OrderHandle.OrderId, describeApiError e))
+                    | Ok _ -> do! report (ScrapingOrderDetails(completed, handles.Length))
+                finally
+                    progressLock.Release() |> ignore
+            })
+
+        do! Parallel.ForEachAsync(
+            Array.indexed handles,
+            ParallelOptions(MaxDegreeOfParallelism = 10, CancellationToken = ct),
+            Func<_, _, _>(fetch))
+
+        ct.ThrowIfCancellationRequested()
+        return Ok(Array.choose id results, Array.choose id failures)
     }
 
 module ScrapeSession =
@@ -106,28 +178,20 @@ let scrapeRides
                 let! handles, history = BoltClient.getOrderHistory bolt
 
                 let handles = handles |> Array.ofSeq
-                let total = handles.Length
-                let previous = ResizeArray()
-                let details = ResizeArray()
-                let mutable i = 0
+                let history = Array.ofSeq history
+                let! successful, skipped = fetchOrderDetails session.Config handles report ct
+                let history = successful |> Array.map (fun (index, _, _) -> history[index])
+                let previous = successful |> Array.map (fun (_, p, _) -> p)
+                let details = successful |> Array.map (fun (_, _, d) -> d)
 
-                do! taskResult {
-                    while i < total do
-                        ct.ThrowIfCancellationRequested()
-                        do! report (ScrapingOrderDetails(i + 1, total))
-                        let! p = BoltClient.getPreviousOrder bolt handles[i]
-                        let! d = BoltClient.getPastOrderDetails bolt handles[i]
-                        previous.Add p
-                        details.Add d
-                        i <- i + 1
-                }
-
-                return (profile, activity, Array.ofSeq history, previous.ToArray(), details.ToArray())
+                return (profile, activity, history, previous, details, skipped)
             })
 
         match scraped with
         | Error e -> return Error e
-        | Ok(profile, activity, history, previous, details) ->
+        | Ok(_, _, _, previous, _, skipped) when previous.Length = 0 && skipped.Length > 0 ->
+            return Error $"Nie udało się pobrać żadnego kursu: pominięto {skipped.Length} po trzech próbach. Błąd: {skipped[0].Reason}"
+        | Ok(profile, activity, history, previous, details, skipped) ->
             try
                 let data =
                     { Email = email
@@ -135,14 +199,15 @@ let scrapeRides
                       ActivityHours = activity
                       OrderHistory = history
                       PreviousOrders = previous |> Array.map Json.deserializeElement<PreviousOrder>
-                      PastOrderDetails = details |> Array.map Json.deserializeElement<PastOrderDetail> }
+                      PastOrderDetails = details |> Array.map Json.deserializeElement<PastOrderDetail>
+                      SkippedOrders = skipped }
 #if DEBUG
                 DriverProfileRepository.saveUnstructuredDangerous email profile
                 ActivityHoursRepository.saveUnstructuredDangerous email activity
                 OrderHistoryRepository.saveUnstructuredDangerous email history
                 PreviousOrderRepository.saveUnstructuredDangerous email previous
                 PastOrderDetailRepository.saveUnstructuredDangerous email details
-                ScrapeMetadataRepository.save email { ScrapedAt = DateTimeOffset.UtcNow }
+                ScrapeMetadataRepository.save email { ScrapedAt = DateTimeOffset.UtcNow; SkippedOrders = Some skipped }
 #endif
                 return Ok data
             with ex ->

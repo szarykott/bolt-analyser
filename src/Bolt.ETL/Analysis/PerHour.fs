@@ -8,14 +8,14 @@ namespace Bolt.ETL.Analysis
 module PerHour =
 
     open System
-    open System.Globalization
     open System.Threading.Tasks
+    open Bolt.ETL.Shared
     open Bolt.ETL.Geo
     open Bolt.ETL.Geo.DistrictAssignment
     open Bolt.ETL.Meteo.Model
     open Bolt.ETL.Analytics
-    open Bolt.Infrastructure.Repository
     open Bolt.Models
+    open Bolt.Models.Geo
     open Bolt.Models.Meteo
 
     /// The centrum district, dropped as the regression baseline.
@@ -39,6 +39,35 @@ module PerHour =
     }
 
     type HourlyDataSource = { Rows: HourRow array }
+
+    type HourlyAverage = {
+        IsWeekend: bool
+        IsNight: bool
+        Rate: float
+        HourCount: int
+    }
+
+    type HourlyEffect = {
+        Feature: string
+        Estimate: float option
+        PValue: float option
+        CiLow: float option
+        CiHigh: float option
+    }
+
+    type HourlyModel = {
+        Level: int
+        ObservationCount: int
+        RSquared: float option
+        AdjustedRSquared: float option
+        Effects: HourlyEffect array
+        FoldedDistricts: string array
+    }
+
+    type AnalysisResult = {
+        Averages: HourlyAverage array
+        Models: HourlyModel list
+    }
 
     type WorkedSegment = {
         SegStart: DateTimeOffset
@@ -147,14 +176,12 @@ module PerHour =
                         Snow = weather.Snow <> 0.0<cm>
                         Temperature = TemperatureBucket.fromCelcius weather.Temperature
                         IsNight = hour.Hour >= 18 || hour.Hour < 6
-                        IsWeekend = PerRide2.RideRow.isWeekend hour
-                        IsRushHour = PerRide2.RideRow.isRushHour hour
+                        IsWeekend = RideTime.isWeekend hour
+                        IsRushHour = RideTime.isRushHour hour
                     })
             |> Array.ofList
 
-    let prepareHourlySource (rides: FinishedRide[]) : HourlyDataSource =
-        let meteo = (MeteoRepository.get ()).Value
-        let districts = (DistrictsRepository.get ()).Value
+    let prepareHourlySource (meteo: Weather) (districts: District seq) (rides: FinishedRide[]) : HourlyDataSource =
         let weatherProvider t = (Weather.getNearestDataPoint meteo t).Value
         let districtProvider = DistrictAssignment.assignCoordinatesToDistrict districts
         let districtOf (ride: FinishedRide) =
@@ -295,164 +322,62 @@ module PerHour =
             |> List.distinctBy (fun r -> r.Columns |> List.map _.Name)
             |> List.rev
 
-    let private pl = CultureInfo.GetCultureInfo "pl-PL"
-    let private fmt2 (v: float) = v.ToString("F2", pl)
-    let private fmt2Opt (v: float option) =
-        v |> Option.map fmt2 |> Option.defaultValue "–"
+    /// Weighted grouped means, always available without a service call.
+    let hourlyAverages (rows: HourRow array) : HourlyAverage array =
+        rows
+        |> Array.groupBy (fun r -> r.IsWeekend, r.IsNight)
+        |> Array.map (fun ((isWeekend, isNight), group) ->
+            let effectiveHours = group |> Array.sumBy _.Fill
+            let earnings = group |> Array.sumBy (fun r -> r.Rate * r.Fill)
+            { IsWeekend = isWeekend
+              IsNight = isNight
+              Rate = earnings / effectiveHours
+              HourCount = group.Length })
+        |> Array.sortByDescending _.Rate
 
-    /// Rung 0: weighted grouped means, always shown — no service call needed.
-    module Rung0 =
+    let toAnalyticsRows (rung: Ladder.Rung) (rows: HourRow array) : Map<string, obj> array =
+        rows
+        |> Array.map (fun r ->
+            Map.ofList
+                (("stawka_pln_h", box r.Rate)
+                 :: ("waga", box r.Fill)
+                 :: (rung.Columns |> List.map (fun c -> c.Name, box (c.Value r)))))
 
-        let private groupLabel (r: HourRow) =
-            let day = if r.IsWeekend then "weekend" else "dzień roboczy"
-            let time = if r.IsNight then "noc" else "dzień"
-            $"{day}, {time}"
+    let modelFromResponse (rung: Ladder.Rung) (response: OlsResponse) : HourlyModel =
+        { Level = rung.Level
+          ObservationCount = response.NObservations
+          RSquared = response.RSquared
+          AdjustedRSquared = response.AdjRSquared
+          FoldedDistricts = rung.FoldedDistricts
+          Effects =
+            response.Coefficients
+            |> Array.filter (fun c -> c.Name <> "const")
+            |> Array.map (fun c ->
+                { Feature = c.Name
+                  Estimate = c.Coef
+                  PValue = c.PValue
+                  CiLow = c.CiLow
+                  CiHigh = c.CiHigh }) }
 
-        let table (rows: HourRow array) : ResultTable =
-            let groups =
-                rows
-                |> Array.groupBy groupLabel
-                |> Array.map (fun (label, group) ->
-                    let effectiveHours = group |> Array.sumBy _.Fill
-                    let earnings = group |> Array.sumBy (fun r -> r.Rate * r.Fill)
-                    label, earnings / effectiveHours, group.Length)
-                |> Array.sortByDescending (fun (_, rate, _) -> rate)
-                |> Array.map (fun (label, rate, count) -> [ label; fmt2 rate; string count ])
-                |> List.ofArray
-            { Title = "Średnie zarobki na godzinę pracy"
-              Headers = [ "kiedy"; "zł za godzinę"; "liczba godzin" ]
-              Rows = groups
-              Notes =
-                [ "zł za godzinę — średnia ważona czasem pracy: godziny przepracowane w całości liczą się mocniej niż ledwie zaczęte."
-                  "liczba godzin — ile godzin zegarowych z jazdą wpadło do danej grupy." ] }
-
-    module Display =
-
-        let toAnalyticsRows (rung: Ladder.Rung) (rows: HourRow array) : Map<string, obj> array =
-            rows
-            |> Array.map (fun r ->
-                Map.ofList
-                    (("stawka_pln_h", box r.Rate)
-                     :: ("waga", box r.Fill)
-                     :: (rung.Columns |> List.map (fun c -> c.Name, box (c.Value r)))))
-
-        let private fmtPValue (p: float option) =
-            match p with
-            | Some p when p < 0.001 -> "< 0,001"
-            | Some p -> p.ToString("F3", pl)
-            | None -> "–"
-
-        let private isSignificant (c: Coefficient) =
-            match c.PValue with
-            | Some p -> p < 0.05
-            | None -> false
-
-        let coefficientsTable (rung: Ladder.Rung) (response: OlsResponse) : ResultTable =
-            let features =
-                response.Coefficients |> Array.filter (fun c -> c.Name <> "const")
-            let significant, insignificant = features |> Array.partition isSignificant
-            let rows =
-                significant
-                |> Array.sortByDescending (fun c -> c.Coef |> Option.map abs |> Option.defaultValue 0.0)
-                |> Array.map (fun c ->
-                    [ c.Name
-                      fmt2Opt c.Coef
-                      (match c.CiLow, c.CiHigh with
-                       | Some lo, Some hi -> $"od {fmt2 lo} do {fmt2 hi}"
-                       | _ -> "–")
-                      fmtPValue c.PValue ])
-                |> List.ofArray
-            let insignificantNote =
-                if Array.isEmpty insignificant then
-                    "Wszystkie warunki w tym zestawieniu są istotne statystycznie (p < 0,05)."
-                else
-                    let names = insignificant |> Array.map _.Name |> String.concat ", "
-                    $"Warunki, których wpływu nie widać wyraźnie w danych (p ≥ 0,05), pominięte w tabeli: {names}."
-            { Title = $"Wpływ warunków na zarobki na godzinę — poziom {rung.Level}"
-              Headers = [ "warunek"; "współczynnik [zł/h]"; "przedział ufności 95%"; "istotność (p)" ]
-              Rows = rows
-              Notes =
-                [ "warunek — okoliczność panująca w danej godzinie; nazwy dzielnica_… oznaczają różnicę względem Starego Miasta (centrum), zakresy temperatur — względem pozostałych temperatur."
-                  "współczynnik [zł/h] — o ile złotych na godzinę pracy zmieniają się zarobki, gdy dany warunek występuje; wiersze posortowane od najsilniejszego wpływu."
-                  "przedział ufności 95% — zakres, w którym z 95-procentową pewnością mieści się prawdziwa wartość współczynnika."
-                  "istotność (p) — prawdopodobieństwo, że tak silny efekt pojawiłby się przypadkiem; wartości poniżej 0,05 uznaje się za istotne statystycznie."
-                  insignificantNote ] }
-
-        let modelStatsTable (response: OlsResponse) : ResultTable =
-            let fitNote =
-                match response.RSquared with
-                | Some r2 ->
-                    let pct = int (Math.Round(r2 * 100.0))
-                    [ $"Model wyjaśnia {pct}%% zmienności zarobków na godzinę." ]
-                | None -> []
-            { Title = "Dopasowanie modelu"
-              Headers = [ "statystyka"; "wartość" ]
-              Rows =
-                [ [ "liczba godzin"; string response.NObservations ]
-                  [ "R²"; fmt2Opt response.RSquared ]
-                  [ "skorygowane R²"; fmt2Opt response.AdjRSquared ] ]
-              Notes =
-                fitNote
-                @ [ "R² — jaka część zmienności zarobków jest wyjaśniona przez model (od 0 do 1, wyżej = lepiej); skorygowane R² dodatkowo uwzględnia liczbę cech w modelu." ] }
-
-    let private lockedNote =
-        "Niektóre analizy (np. wpływ poszczególnych dzielnic albo dokładnych zakresów temperatury) nie są jeszcze pokazywane — mamy na razie za mało godzin jazdy, żeby policzyć je uczciwie. Odblokują się same, gdy przybędzie danych."
-
-    let private foldedNote =
-        "Część dzielnic zliczona razem jako «inne dzielnice» — za mało godzin w każdej z osobna."
-
-    let private legendNote =
-        "Liczby w wyższych tabelach mogą się różnić od niższych — dokładniejszy model oddziela efekty, które prostszy liczył razem."
-
-    let private appendNotesToLast (notes: string list) (tables: ResultTable list) =
-        match List.rev tables with
-        | [] -> []
-        | last :: rest -> List.rev ({ last with Notes = last.Notes @ notes } :: rest)
-
-    let buildSection (source: HourlyDataSource) : Task<AnalysisSection> =
+    let run (source: HourlyDataSource) : Task<AnalysisResult> =
         task {
             let rows = source.Rows
             let rungs = Ladder.unlockedRungs rows
 
-            let results = ResizeArray<Ladder.Rung * OlsResponse>()
+            let models = ResizeArray<HourlyModel>()
             for rung in rungs do
                 let! response =
                     AnalyticsClient.wlsRegression {
-                        Rows = Display.toAnalyticsRows rung rows
+                        Rows = toAnalyticsRows rung rows
                         Target = "stawka_pln_h"
                         Weights = "waga"
                         DropColumns = [||]
                         CategoricalColumns = None
                         Standardize = false
                     }
-                results.Add(rung, response)
-
-            let rungTables =
-                results |> Seq.map (fun (rung, resp) -> Display.coefficientsTable rung resp) |> List.ofSeq
-            let statsTable =
-                results
-                |> Seq.tryLast
-                |> Option.map (fun (_, resp) -> [ Display.modelStatsTable resp ])
-                |> Option.defaultValue []
-
-            let highest = results |> Seq.tryLast |> Option.map fst
-            let fullyUnlocked =
-                match highest with
-                | Some rung -> rung.Level = 4 && Array.isEmpty rung.FoldedDistricts
-                | None -> false
-            let trailingNotes =
-                [ if not fullyUnlocked then lockedNote
-                  match highest with
-                  | Some rung when rung.Level = 4 && not (Array.isEmpty rung.FoldedDistricts) -> foldedNote
-                  | _ -> ()
-                  if List.length rungTables >= 2 then legendNote ]
+                models.Add(modelFromResponse rung response)
 
             return
-                { Id = "per-hour-earnings"
-                  Title = "Zarobki na godzinę pracy"
-                  Description =
-                    "Zarobki na godzinę pracy w zależności od warunków: pory, pogody i dzielnicy. "
-                    + "Prostsze zestawienia pojawiają się od razu, dokładniejsze odblokowują się wraz z liczbą przepracowanych godzin."
-                  Charts = []
-                  Tables = appendNotesToLast trailingNotes (Rung0.table rows :: rungTables @ statsTable) }
+                { Averages = hourlyAverages rows
+                  Models = List.ofSeq models }
         }

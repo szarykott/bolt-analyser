@@ -16,6 +16,8 @@ let describeProgress (p: ScrapeProgress) =
     | ScrapingActivityHours -> "godziny aktywności"
     | ScrapingOrderHistory -> "historia zleceń"
     | ScrapingOrderDetails(current, total) -> $"szczegóły zleceń {current}/{total}"
+    | ScrapingOrderFailed(current, total, orderId, reason) ->
+        $"szczegóły zleceń {current}/{total}: pominięto kurs {orderId} po 3 próbach ({reason})"
 
 #if DEBUG
 // Reading scraped data back from disk is a debugging convenience: production
@@ -30,13 +32,15 @@ let private loadCached (email: string) : ScrapedData option =
             let! history = OrderHistoryRepository.getUnstructured email
             let! previous = PreviousOrderRepository.get email
             let! details = PastOrderDetailRepository.get email
+            let! metadata = ScrapeMetadataRepository.get email
             return
                 { Email = email
                   Profile = profile
                   ActivityHours = activity
                   OrderHistory = history
                   PreviousOrders = Array.ofSeq previous
-                  PastOrderDetails = Array.ofSeq details }
+                  PastOrderDetails = Array.ofSeq details
+                  SkippedOrders = metadata.SkippedOrders |> Option.defaultValue [||] }
         }
     else
         None
@@ -59,6 +63,6 @@ let realDeps: PipelineDeps<ScrapeSession, ScrapedData> = {
     EnsureMeteo = fun data ct ->
         let dates = data.PreviousOrders |> Array.map _.Created
         ensureMeteoCoverage (Array.min dates, Array.max dates) ct
-    RunAnalysis = AnalysisPipeline.run
+    RunAnalysis = Report.run
     RideCountOf = fun data -> data.PreviousOrders.Length
 }
