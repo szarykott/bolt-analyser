@@ -1,0 +1,27 @@
+services:
+  web:
+    image: dzikikitty/bolt-sharp-web:${BOLT_VERSION:-latest}
+    environment:
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Analytics__BaseUrl: http://analytics:8000
+      BOLT_STORAGE_ROOT: /data
+    ports:
+      - "8080:8080"
+    volumes:
+      - bolt-data:/data
+    depends_on:
+      analytics:
+        condition: service_healthy
+
+  analytics:
+    image: dzikikitty/bolt-sharp-analytics:${BOLT_VERSION:-latest}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  bolt-data:
