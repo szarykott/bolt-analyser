@@ -142,7 +142,8 @@ jobs:
           host: ${{ secrets.MIKRUS_HOST }}
           port: ${{ vars.MIKRUS_SSH_PORT }}
           username: root
-          password: ${{ secrets.MIKRUS_SSH_PASSWORD }}
+          key: ${{ secrets.MIKRUS_SSH_KEY }}
+          passphrase: ""
           envs: COMPOSE_BASE64
           script: |
             set -e
