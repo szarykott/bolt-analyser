@@ -84,7 +84,7 @@ module ClusterMap =
             |> GenericChart.mapTrace (
                 TraceMapboxStyle.ScatterMapbox(
                     Mode = StyleParam.Mode.Markers_Text,
-                    TextFont = Font.init (Size = fontSize c.Size, Color = Color.fromHex "#222222")
+                    TextFont = Font.init (Family = StyleParam.FontFamily.Custom "Noto Sans Regular", Size = fontSize c.Size, Color = Color.fromHex "#222222")
                 )))
         |> Chart.combine
 
@@ -98,7 +98,7 @@ module ClusterMap =
         chart
         |> Chart.withMapbox (
             Mapbox.init (
-                Style = StyleParam.MapboxStyle.CartoPositron,
+                Style = StyleParam.MapboxStyle.Custom "https://tiles.openfreemap.org/styles/positron",
                 Center = center,
                 Zoom = 11.0
             )

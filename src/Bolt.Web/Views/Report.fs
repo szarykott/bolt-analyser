@@ -98,6 +98,13 @@ let private pickupClustersNode (result: RideClustering.AnalysisResult) =
             str "a godzina obok niego to średnia pora odbioru."
         ]
         div [ _id chartId; _class "chart-container" ] []
+        p [ _class "notes" ] [
+            a [ _href "https://openfreemap.org" ] [ str "OpenFreeMap" ]
+            str " · © "
+            a [ _href "https://openmaptiles.org" ] [ str "OpenMapTiles" ]
+            str " · Dane: "
+            a [ _href "https://www.openstreetmap.org/copyright" ] [ str "OpenStreetMap" ]
+        ]
         script [ _type "application/json"; attr "data-plotly-target" chartId ] [
             rawText ((GenericChart.toFigureJson chart).Replace("</", "<\\/"))
         ]

@@ -1,8 +1,34 @@
 module Bolt.Web.Tests.ViewsTests
 
+open System.Text.Json
 open Xunit
 open Bolt.Web
 open Bolt.Web.Tests.ReportFixture
+open Plotly.NET
+
+[<Fact>]
+let ``cluster map uses OpenFreeMap Positron`` () =
+    let chart =
+        Views.ClusterMap.ridePointsLayer report.PickupClusters
+        |> Views.ClusterMap.withMapStyle report.PickupClusters.Points
+    use figure = JsonDocument.Parse(GenericChart.toFigureJson chart)
+    let mapbox = figure.RootElement.GetProperty("layout").GetProperty("mapbox")
+    Assert.Equal("https://tiles.openfreemap.org/styles/positron", mapbox.GetProperty("style").GetString())
+
+[<Fact>]
+let ``cluster hour label uses a font provided by OpenFreeMap`` () =
+    use figure = JsonDocument.Parse(Views.ClusterMap.centroidLayer report.PickupClusters |> GenericChart.toFigureJson)
+    let trace = figure.RootElement.GetProperty("data")[0]
+    Assert.Equal("markers+text", trace.GetProperty("mode").GetString())
+    Assert.Equal("08:30", trace.GetProperty("text").GetString())
+    Assert.Equal("Noto Sans Regular", trace.GetProperty("textfont").GetProperty("family").GetString())
+
+[<Fact>]
+let ``report embeds OpenFreeMap style for browser rendering and download`` () =
+    let html = Views.Report.reportFragment report
+    Assert.Contains("https://tiles.openfreemap.org/styles/positron", html)
+    Assert.Contains("href=\"https://openmaptiles.org\"", html)
+    Assert.Contains("href=\"https://www.openstreetmap.org/copyright\"", html)
 
 [<Fact>]
 let ``fragments are rooted in the panel div`` () =
