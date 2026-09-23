@@ -1,15 +1,21 @@
-name: Publish release images
+name: Publish and deploy application
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published Docker image tag to deploy or restore
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   test:
-    if: ${{ !github.event.release.prerelease }}
+    if: ${{ github.event_name == 'release' && !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name }}
@@ -46,11 +52,9 @@ jobs:
         working-directory: python-analytics
         run: uv run --python 3.12 --frozen pytest
 
-  publish:
+  publish_images:
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name }}
       WEB_IMAGE: dzikikitty/bolt-sharp-web
@@ -80,10 +84,71 @@ jobs:
           docker push "$ANALYTICS_IMAGE:$RELEASE_TAG"
           docker push "$ANALYTICS_IMAGE:latest"
 
-      - name: Attach deployment package to release
+  prepare_deployment:
+    needs: publish_images
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.publish_images.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      DEPLOY_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+    outputs:
+      compose: ${{ steps.prepare.outputs.compose }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Create deployment YAML
+        id: prepare
+        run: |
+          if [[ ! "$DEPLOY_VERSION" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Version is not a valid Docker image tag: $DEPLOY_VERSION" >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path("compose.mikrus.yaml")
+          content = path.read_text()
+          placeholder = "${BOLT_VERSION:-latest}"
+          assert content.count(placeholder) == 2
+          path.write_text(content.replace(placeholder, os.environ["DEPLOY_VERSION"]))
+          PY
+          printf 'compose=%s\n' "$(base64 -w0 compose.mikrus.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Attach Mikrus Compose file to release
+        if: ${{ github.event_name == 'release' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          archive="bolt-sharp-deploy-$RELEASE_TAG.zip"
-          zip "$archive" compose.release.yaml nginx/http.conf nginx/https.conf nginx/start.sh nginx/certbot.sh
-          gh release upload "$RELEASE_TAG" "$archive" --repo "$GITHUB_REPOSITORY"
+          gh release upload "$RELEASE_TAG" compose.mikrus.yaml --clobber --repo "$GITHUB_REPOSITORY"
+          old_asset="bolt-sharp-deploy-$RELEASE_TAG.zip"
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' --repo "$GITHUB_REPOSITORY" | grep -Fxq "$old_asset"; then
+            gh release delete-asset "$RELEASE_TAG" "$old_asset" --yes --repo "$GITHUB_REPOSITORY"
+          fi
+
+  deploy_application:
+    needs: prepare_deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          COMPOSE_BASE64: ${{ needs.prepare_deployment.outputs.compose }}
+        with:
+          host: ${{ secrets.MIKRUS_HOST }}
+          port: ${{ vars.MIKRUS_SSH_PORT }}
+          username: root
+          password: ${{ secrets.MIKRUS_SSH_PASSWORD }}
+          envs: COMPOSE_BASE64
+          script: |
+            set -e
+            mkdir -p /root/server
+            printf '%s' "$COMPOSE_BASE64" | base64 -d > /root/server/compose.mikrus.yaml
+            cd /root/server
+            docker compose -f compose.mikrus.yaml pull
+            docker compose -f compose.mikrus.yaml down
+            docker compose -f compose.mikrus.yaml up -d
