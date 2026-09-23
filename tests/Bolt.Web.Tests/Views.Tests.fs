@@ -41,7 +41,10 @@ let ``report lists skipped orders and escapes their reasons`` () =
 [<Fact>]
 let ``report shows completed ride count earnings distance and four hourly groups`` () =
     let html = Views.Report.reportFragment report
-    Assert.Contains("Liczba przejazd&#243;w: </strong>42", html)
+    Assert.Contains("class=\"summary-grid\"", html)
+    Assert.Contains("Liczba przejazd&#243;w</span><strong class=\"metric-value\">42", html)
+    Assert.Contains("Przejechany dystans</span><strong class=\"metric-value\">57,25 km", html)
+    Assert.Contains("Zarobek kierowcy</span><strong class=\"metric-value\">", html)
     Assert.Contains("234,50 zł", html)
     Assert.Contains("57,25 km", html)
     Assert.Contains("Zapłacone przez pasażer&#243;w", html)
@@ -89,6 +92,14 @@ let ``index page wires htmx websocket and panel`` () =
     Assert.Contains("/app.js", html)
     Assert.Contains("lang=\"pl\"", html)
     Assert.Contains("Analiza przejazd&#243;w Bolt", html)
+    Assert.Contains("@media (max-width: 650px)", html)
+
+[<Fact>]
+let ``report wraps wide tables and lets the chart size to its container`` () =
+    let html = Views.Report.reportFragment report
+    Assert.Contains("class=\"table-scroll wide\"", html)
+    Assert.Contains("id=\"chart-ride-clusters-0\" class=\"chart-container\"", html)
+    Assert.DoesNotContain("width:100%;height:800px", html)
 
 [<Fact>]
 let ``email attribute is single-encoded by the view engine`` () =

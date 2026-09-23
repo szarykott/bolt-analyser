@@ -104,4 +104,3 @@ module ClusterMap =
             )
         )
         |> Chart.withMarginSize (Left = 0, Right = 0, Top = 0, Bottom = 0)
-        |> Chart.withSize (1200.0, 800.0)

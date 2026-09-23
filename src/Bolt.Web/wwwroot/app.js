@@ -4,7 +4,7 @@ function renderCharts() {
     var target = document.getElementById(el.dataset.plotlyTarget);
     if (target && !target.dataset.rendered) {
       var fig = JSON.parse(el.textContent);
-      Plotly.newPlot(target, fig.data, fig.layout);
+      Plotly.newPlot(target, fig.data, fig.layout, { responsive: true });
       target.dataset.rendered = "true";
     }
   });
@@ -20,9 +20,9 @@ function downloadReport() {
     d.removeAttribute('data-rendered');
   });
   var styleEl = document.querySelector('style');
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bolt ride analysis</title>'
+  var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Analiza przejazdów Bolt</title>'
     + '<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"><\/script>'
-    + '<style>' + (styleEl ? styleEl.textContent : '') + '</style></head><body>'
+    + '<style>' + (styleEl ? styleEl.textContent : '') + '</style></head><body class="exported-report">'
     + clone.outerHTML
     + '<script>window.addEventListener("load", ' + renderCharts.toString() + ');<\/script>'
     + '</body></html>';
