@@ -19,10 +19,12 @@ function downloadReport() {
     d.innerHTML = '';
     d.removeAttribute('data-rendered');
   });
-  var styleEl = document.querySelector('style');
+  var styles = Array.from(document.querySelectorAll('style'), function (style) {
+    return style.textContent;
+  }).join('\n');
   var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Analiza przejazdów Bolt</title>'
     + '<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"><\/script>'
-    + '<style>' + (styleEl ? styleEl.textContent : '') + '</style></head><body class="exported-report">'
+    + '<style>' + styles + '</style></head><body class="exported-report">'
     + clone.outerHTML
     + '<script>window.addEventListener("load", ' + renderCharts.toString() + ');<\/script>'
     + '</body></html>';

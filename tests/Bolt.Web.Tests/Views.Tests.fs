@@ -144,31 +144,39 @@ let ``email page wires htmx websocket and panel`` () =
     Assert.Contains("@media (max-width: 650px)", html)
     Assert.DoesNotContain("trybie Release", html)
 #if DEBUG
-    Assert.Contains("Aplikacja działa w trybie Debug.", html)
+    Assert.Contains("<footer class=\"debug-footer\">", html)
+    Assert.Contains("zapisuje lokalnie na serwerze pobrane dane oraz tokeny logowania", html)
 #else
-    Assert.DoesNotContain("trybie Debug", html)
+    Assert.DoesNotContain("<footer class=\"debug-footer\">", html)
+    Assert.DoesNotContain("trybie deweloperskim", html)
 #endif
 
 [<Fact>]
-let ``index page warns before asking for email in release`` () =
-    let html = Views.Input.indexPage ()
-    Assert.DoesNotContain("Release", html)
-#if DEBUG
-    Assert.Contains("Aplikacja działa w trybie Debug.", html)
-    Assert.Contains("name=\"email\"", html)
-#else
-    Assert.Contains("Zanim podasz adres e-mail", html)
+let ``index page shows benefits before data and asks for email on next page`` () =
+    let html = Views.Input.indexPage () |> System.Net.WebUtility.HtmlDecode
+    Assert.Contains("Zobacz, co mówią Twoje przejazdy", html)
+    Assert.Contains("Zarobki w jednym miejscu", html)
+    Assert.Contains("Porównanie godzin pracy", html)
+    Assert.Contains("Mapa miejsc odbioru", html)
+    Assert.Contains("<details>", html)
+    Assert.Contains("<summary>Zobacz szczegóły dostępu do konta i danych</summary>", html)
+    Assert.True(html.IndexOf("Zarobki w jednym miejscu") < html.IndexOf("Jak korzystamy z Twoich danych"))
+    Assert.True(html.IndexOf("Jak korzystamy z Twoich danych") < html.IndexOf("Przejdź do podania e-maila"))
     Assert.Contains("To nie jest oficjalny produkt Bolta", html)
-    Assert.Contains("osobisty projekt stworzony przez kierowcę Bolt", html)
-    Assert.DoesNotContain("name=\"email\"", html)
-    Assert.DoesNotContain("ws-connect", html)
     Assert.Contains("wylogowanie Cię z aplikacji Bolt", html)
     Assert.Contains("wszystkich danych dostępnych na Twoim koncie kierowcy", html)
     Assert.Contains("duże zaufanie do autora tej strony", html)
-    Assert.Contains("nie są zapisywane na serwerze", html)
+    Assert.Contains("W wersji publicznej dane nie są zapisywane na serwerze", html)
     Assert.Contains("https://github.com/szarykott/bolt-analyser", html)
     Assert.Contains("action=\"start\"", html)
-    Assert.Contains("Przejdź do podania e-maila", html)
+    Assert.DoesNotContain("name=\"email\"", html)
+    Assert.DoesNotContain("ws-connect", html)
+#if DEBUG
+    Assert.Contains("<footer class=\"debug-footer\">", html)
+    Assert.Contains("zapisuje lokalnie na serwerze pobrane dane oraz tokeny logowania", html)
+#else
+    Assert.DoesNotContain("<footer class=\"debug-footer\">", html)
+    Assert.DoesNotContain("trybie deweloperskim", html)
 #endif
 
 [<Fact>]

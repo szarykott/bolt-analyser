@@ -20,11 +20,26 @@ h2 { font-size: 1.35rem; }
 h4 { font-size: 1rem; margin-bottom: 0.75rem; }
 p { line-height: 1.6; }
 .muted, .notes { color: #6e5c51; }
-.flow-card a { color: #a83b11; }
+.flow-card a, .landing a { color: #a83b11; }
 .notes { font-size: 0.875rem; max-width: 80ch; }
-.flow-card, .report-section, .metric-card { background: #fff; border: 1px solid #eadccf; border-radius: 1rem; box-shadow: 0 8px 30px rgba(83, 46, 21, 0.05); }
+.flow-card, .report-section, .metric-card, .benefit-card, .data-card { background: #fff; border: 1px solid #eadccf; border-radius: 1rem; box-shadow: 0 8px 30px rgba(83, 46, 21, 0.05); }
 .flow-card { width: 100%; max-width: 640px; padding: clamp(1.5rem, 4vw, 2.5rem); margin: auto; }
 .flow-card p:last-child { margin-bottom: 0; }
+.landing { width: 100%; max-width: 960px; margin: auto; }
+.landing-hero { max-width: 760px; margin-bottom: 3rem; }
+.landing-hero h1 { font-size: clamp(2.2rem, 5vw, 4rem); }
+.landing-hero p { font-size: 1.15rem; }
+.benefit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 3rem; }
+.benefit-card, .data-card { padding: clamp(1.5rem, 3vw, 2rem); }
+.benefit-card h3 { margin-bottom: 0.75rem; }
+.benefit-card p:last-child, .data-card p:last-child { margin-bottom: 0; }
+.data-card { max-width: 760px; }
+.data-card details { margin: 1.5rem 0; }
+.data-card summary { color: #a83b11; font-weight: 700; cursor: pointer; }
+.data-card summary:focus-visible { outline: 3px solid #ff5e1e; outline-offset: 2px; }
+.data-card details p:first-of-type { margin-top: 1rem; }
+.data-card form { margin-top: 1.5rem; }
+.debug-footer { margin-top: 2rem; color: #6e5c51; font-size: 0.875rem; line-height: 1.5; }
 .link-example { display: block; max-width: 100%; height: auto; border: 1px solid #c9ad97; border-radius: 0.65rem; }
 .link-example-caption { margin-top: 1.5rem; }
 .form-field { display: grid; gap: 0.5rem; margin: 1.5rem 0 1rem; font-weight: 600; }
@@ -62,8 +77,10 @@ tbody tr:hover { background: #fff9f3; }
   .app-shell { padding: 1.25rem 1rem 2.5rem; }
   .exported-report #report-content { padding: 1.25rem 1rem 2.5rem; }
   .app-header { margin-bottom: 1.5rem; }
+  .landing-hero { margin-bottom: 2rem; }
+  .benefit-grid { grid-template-columns: 1fr; margin-bottom: 2rem; }
   .summary-grid { grid-template-columns: 1fr; }
-  .report-actions button, .flow-card button { width: 100%; }
+  .report-actions button, .flow-card button, .data-card button { width: 100%; }
   .metric-card { padding: 1rem 1.25rem; }
 }
 """
@@ -85,7 +102,12 @@ let private page bodyAttributes content =
                 header [ _class "app-header" ] [
                     span [] [ str "Analiza przejazdów Bolta" ]
                 ]
-                panel [ div [ _class "flow-card" ] content ]
+                panel content
+#if DEBUG
+                footer [ _class "debug-footer" ] [
+                    str "Aplikacja działa w trybie deweloperskim (Debug) i zapisuje lokalnie na serwerze pobrane dane oraz tokeny logowania. Informacja o braku zapisu dotyczy wersji publicznej."
+                ]
+#endif
             ]
         ]
     ]
@@ -93,55 +115,77 @@ let private page bodyAttributes content =
 
 let emailPage () =
     page [ attr "hx-ext" "ws"; attr "ws-connect" "ws" ] [
-        h1 [] [ str "Analiza przejazdów Bolt" ]
-        p [ _class "muted" ] [ str "Przygotuj podsumowanie swoich przejazdów i zarobków." ]
-#if DEBUG
-        p [ _class "notes" ] [ str "Aplikacja działa w trybie Debug." ]
-#endif
-        form [ flag "ws-send" ] [
-            input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
-            label [ _class "form-field" ] [
-                str "Adres e-mail kierowcy Bolt"
-                input [ _type "email"; _name "email"; _required; _placeholder "kierowca@przyklad.pl" ]
+        div [ _class "flow-card" ] [
+            h1 [] [ str "Analiza przejazdów Bolt" ]
+            p [ _class "muted" ] [ str "Przygotuj podsumowanie swoich przejazdów i zarobków." ]
+            form [ flag "ws-send" ] [
+                input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
+                label [ _class "form-field" ] [
+                    str "Adres e-mail kierowcy Bolt"
+                    input [ _type "email"; _name "email"; _required; _placeholder "kierowca@przyklad.pl" ]
+                ]
+                button [ _type "submit" ] [ str "Przygotuj analizę" ]
             ]
-            button [ _type "submit" ] [ str "Przygotuj analizę" ]
         ]
     ]
 
 let indexPage () =
-#if DEBUG
-    emailPage ()
-#else
     page [] [
-        h1 [] [ str "Zanim podasz adres e-mail" ]
-        p [ _class "muted" ] [ str "Ta strona analizuje dane z konta kierowcy Bolt. Przeczytaj, jaki dostęp jej powierzasz." ]
-        p [] [ str "To nie jest oficjalny produkt Bolta. To osobisty projekt stworzony przez kierowcę Bolt dla siebie i innych kierowców." ]
-        h2 [] [ str "Dostęp do konta i ryzyko" ]
-        p [] [
-            str "Po podaniu adresu e-mail i linku z wiadomości Bolt aplikacja zaloguje się na Twoje konto. "
-            str "Spowoduje to wylogowanie Cię z aplikacji Bolt. Uzyska dostęp do wszystkich danych dostępnych na Twoim koncie kierowcy, nie tylko do danych pokazanych w raporcie."
-        ]
-        p [] [
-            str "Przejście dalej oznacza duże zaufanie do autora tej strony: serwer otrzyma link do logowania i dostęp do danych konta. "
-            str "Jeśli nie chcesz powierzać ich cudzej stronie, możesz uruchomić aplikację na swoim komputerze."
-        ]
-        h2 [] [ str "Jakie dane są przetwarzane" ]
-        p [] [
-            str "Aplikacja przetwarza adres e-mail i link do logowania, dane profilu, godziny aktywności oraz historię i szczegóły przejazdów, "
-            str "w tym lokalizacje i kwoty. Dane służą do przygotowania analizy i pokazania Ci raportu. "
-            str "Dane nie są zapisywane na serwerze. Połączenia z Bolt i z tą stroną są szyfrowane."
-        ]
-        h2 [] [ str "Kod źródłowy" ]
-        p [] [
-            str "Aplikacja jest non-profit i otwartoźródłowa. "
-            a [ _href "https://github.com/szarykott/bolt-analyser" ] [ str "Kod źródłowy jest dostępny na GitHubie" ]
-            str "; możesz go sprawdzić i uruchomić aplikację na własnym komputerze."
-        ]
-        form [ _action "start"; _method "get" ] [
-            button [ _type "submit" ] [ str "Przejdź do podania e-maila" ]
+        main [ _class "landing" ] [
+            section [ _class "landing-hero" ] [
+                h1 [] [ str "Zobacz, co mówią Twoje przejazdy" ]
+                p [ _class "muted" ] [ str "Zamień historię kursów Bolt w czytelny raport o zarobkach, stawkach godzinowych i miejscach odbioru pasażerów." ]
+            ]
+            section [] [
+                h2 [] [ str "Co znajdziesz w raporcie" ]
+                div [ _class "benefit-grid" ] [
+                    article [ _class "benefit-card" ] [
+                        h3 [] [ str "Zarobki w jednym miejscu" ]
+                        p [] [ str "Zobacz podsumowanie przejazdów, napiwków, prowizji i zarobku kierowcy." ]
+                    ]
+                    article [ _class "benefit-card" ] [
+                        h3 [] [ str "Porównanie godzin pracy" ]
+                        p [] [ str "Sprawdź średnie zarobki na godzinę w dni robocze, weekendy, w dzień i w nocy." ]
+                    ]
+                    article [ _class "benefit-card" ] [
+                        h3 [] [ str "Mapa miejsc odbioru" ]
+                        p [] [ str "Odkryj, gdzie i o jakich porach najczęściej odbierasz pasażerów." ]
+                    ]
+                ]
+            ]
+            section [ _class "data-card" ] [
+                h2 [] [ str "Jak korzystamy z Twoich danych" ]
+                p [] [
+                    str "Do przygotowania raportu podasz adres e-mail i link z wiadomości Bolt. "
+                    str "Aplikacja zaloguje się na Twoje konto kierowcy i pobierze dane potrzebne do analizy."
+                ]
+                p [] [ str "Dane nie są zapisywane na serwerze, a połączenia z Bolt i z tą stroną są szyfrowane." ]
+                details [] [
+                    summary [] [ str "Zobacz szczegóły dostępu do konta i danych" ]
+                    p [] [
+                        str "Zalogowanie przez aplikację spowoduje wylogowanie Cię z aplikacji Bolt. "
+                        str "Aplikacja uzyska dostęp do wszystkich danych dostępnych na Twoim koncie kierowcy, nie tylko do danych pokazanych w raporcie."
+                    ]
+                    p [] [
+                        str "Przetwarzane są adres e-mail i link do logowania, dane profilu, godziny aktywności oraz historia i szczegóły przejazdów, "
+                        str "w tym lokalizacje i kwoty. Dane służą do przygotowania analizy i pokazania Ci raportu."
+                    ]
+                    p [] [
+                        str "To nie jest oficjalny produkt Bolta. To osobisty projekt stworzony przez kierowcę Bolt dla siebie i innych kierowców. "
+                        str "Przejście dalej oznacza duże zaufanie do autora tej strony: serwer otrzyma link do logowania i dostęp do danych konta."
+                    ]
+                    p [] [
+                        str "Aplikacja jest non-profit i otwartoźródłowa. "
+                        a [ _href "https://github.com/szarykott/bolt-analyser" ] [ str "Kod źródłowy jest dostępny na GitHubie" ]
+                        str "; możesz go sprawdzić i uruchomić aplikację na własnym komputerze."
+                    ]
+                ]
+                form [ _action "start"; _method "get" ] [
+                    button [ _type "submit" ] [ str "Przejdź do podania e-maila" ]
+                ]
+            ]
         ]
     ]
-#endif
 
 let magicLinkFragment (email: string) (error: string option) =
     let errorNode =

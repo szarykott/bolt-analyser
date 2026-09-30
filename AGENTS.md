@@ -27,3 +27,7 @@ Recent commits usually use short subjects such as `feat: add ...`, `fix: correct
 ## Configuration & Secrets
 
 `src/Bolt.Web/appsettings.json` is ignored by Git. Keep local service URLs and credentials out of commits. The web app reads `Analytics:BaseUrl`; the Python service defaults to port 8000 in local instructions.
+
+## Debug vs. Release
+
+Do not mention Debug mode in any client-facing interfaces - this is a mode used during development to facilitate it and should not be mentioned to users. Debug can only be mentioned when application is run in Debug mode.
