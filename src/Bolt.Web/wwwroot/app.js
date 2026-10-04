@@ -37,3 +37,10 @@ function downloadReport() {
 }
 
 document.addEventListener('htmx:wsAfterMessage', renderCharts);
+
+// Reattach to the server job when the browser returns from another app.
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && document.querySelector('[ws-connect]')) {
+    window.location.reload();
+  }
+});

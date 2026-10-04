@@ -129,6 +129,18 @@ let emailPage () =
         ]
     ]
 
+let expiredFragment () =
+    panel [
+        div [ _class "flow-card error-card" ] [
+            h1 [] [ str "Sesja wygasła" ]
+            p [] [ str "Odśwież stronę, aby rozpocząć analizę ponownie." ]
+            form [ _action "start"; _method "get" ] [
+                button [ _type "submit" ] [ str "Rozpocznij ponownie" ]
+            ]
+        ]
+    ]
+    |> render
+
 let indexPage () =
     page [] [
         main [ _class "landing" ] [

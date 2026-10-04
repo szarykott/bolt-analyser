@@ -61,9 +61,12 @@ let run
             | None, Some d when deps.RideCountOf d = 0 ->
                 do! notify (Failed("pobieranie przejazdów", "Nie znaleziono przejazdów dla tego konta"))
             | None, Some d ->
+                ct.ThrowIfCancellationRequested()
                 do! notify RunningAnalysis
 
-                match! deps.RunAnalysis d with
+                let! result = deps.RunAnalysis d
+                ct.ThrowIfCancellationRequested()
+                match result with
                 | Ok report -> do! notify (Done report)
                 | Error e -> do! notify (Failed("analiza", e))
             | None, None -> () // request-magic-link failed; already reported above

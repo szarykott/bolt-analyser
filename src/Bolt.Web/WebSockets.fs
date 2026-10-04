@@ -1,7 +1,6 @@
 module Bolt.Web.WebSockets
 
 open System
-open System.Collections.Concurrent
 open System.Net.WebSockets
 open System.Text
 open System.Text.Json
@@ -10,9 +9,7 @@ open System.Threading.Channels
 open System.Threading.Tasks
 open Microsoft.AspNetCore.Http
 open Bolt.Web.Jobs
-
-// Emails with a running job, across all sockets. Value is unused.
-let private activeEmails = ConcurrentDictionary<string, byte>()
+open Bolt.Web.JobSessions
 
 let private parseMessage (json: string) : ClientMessage option =
     try
@@ -33,16 +30,6 @@ let private parseMessage (json: string) : ClientMessage option =
     with _ ->
         None
 
-let private stateFragment (email: string) (state: JobState) =
-    match state with
-    | CheckingCache -> Views.Processing.progressFragment "Sprawdzanie zapisanych danych…" ""
-    | Authenticating -> Views.Processing.progressFragment "Logowanie…" ""
-    | AwaitingMagicLink error -> Views.Input.magicLinkFragment email error
-    | ScrapingRides detail -> Views.Processing.progressFragment "Pobieranie przejazdów…" detail
-    | RunningAnalysis -> Views.Processing.progressFragment "Trwa analiza…" ""
-    | Done report -> Views.Report.reportFragment report
-    | Failed(step, message) -> Views.Processing.errorFragment email step message
-
 /// WebSocket handshakes bypass the same-origin policy, so the Origin header
 /// must be checked explicitly (Cross-Site WebSocket Hijacking).
 let originAllowed (ctx: HttpContext) =
@@ -53,78 +40,60 @@ let originAllowed (ctx: HttpContext) =
         | true, uri -> String.Equals(uri.Host, ctx.Request.Host.Host, StringComparison.OrdinalIgnoreCase)
         | _ -> false
 
-let handle (deps: PipelineDeps<'session, 'data>) (ctx: HttpContext) : Task =
+let handle (deps: PipelineDeps<'session, 'data>) (registry: JobRegistry) (ctx: HttpContext) : Task =
     task {
         if not (originAllowed ctx) then
             ctx.Response.StatusCode <- StatusCodes.Status403Forbidden
         elif not ctx.WebSockets.IsWebSocketRequest then
             ctx.Response.StatusCode <- StatusCodes.Status400BadRequest
         else
+            let sessionId =
+                match ctx.Request.Cookies.TryGetValue cookieName with
+                | true, value -> Some value
+                | _ -> None
+
             use! socket = ctx.WebSockets.AcceptWebSocketAsync()
-            use sendLock = new SemaphoreSlim(1, 1)
+            let connectionId = Guid.NewGuid()
+            let outbox = sessionId |> Option.bind (fun id -> registry.Attach(id, connectionId, ctx.Abort))
 
-            let send (fragment: string) : Task =
+            let send (fragment: string) =
+                let bytes = Encoding.UTF8.GetBytes fragment
+                socket.SendAsync(ArraySegment bytes, WebSocketMessageType.Text, true, CancellationToken.None)
+
+            let forward (reader: ChannelReader<string>) =
                 task {
-                    do! sendLock.WaitAsync()
                     try
-                        if socket.State = WebSocketState.Open then
-                            let bytes = Encoding.UTF8.GetBytes fragment
-                            do! socket.SendAsync(ArraySegment bytes, WebSocketMessageType.Text, true, CancellationToken.None)
-                    finally
-                        sendLock.Release() |> ignore
+                        let mutable reading = true
+                        while reading do
+                            let! available = reader.WaitToReadAsync()
+                            if not available then
+                                reading <- false
+                            else
+                                let mutable fragment = Unchecked.defaultof<string>
+                                while reader.TryRead(&fragment) do
+                                    if socket.State = WebSocketState.Open then
+                                        do! send fragment
+                    with
+                    | :? WebSocketException
+                    | :? IO.IOException
+                    | :? OperationCanceledException -> ctx.Abort()
                 }
 
-            // At most one job per socket.
-            let mutable jobEmail: string option = None
-            let mutable jobCts: CancellationTokenSource option = None
-            let mutable magicLinks: Channel<string> option = None
-
-            let releaseJob () =
-                jobEmail |> Option.iter (fun e -> activeEmails.TryRemove e |> ignore)
-                jobEmail <- None
-
-            let startJob (email: string) =
-                task {
-                    if not (activeEmails.TryAdd(email, 0uy)) then
-                        do! send (Views.Processing.errorFragment email "uruchamianie"
-                                      "Analiza dla tego adresu e-mail już trwa. Spróbuj ponownie później.")
-                    else
-                        let cts = new CancellationTokenSource()
-                        let channel = Channel.CreateUnbounded<string>()
-                        jobEmail <- Some email
-                        jobCts <- Some cts
-                        magicLinks <- Some channel
-
-                        let notify state =
-                            task {
-                                do! send (stateFragment email state)
-
-                                match state with
-                                | Done _
-                                | Failed _ -> releaseJob ()
-                                | _ -> ()
-                            }
-                            :> Task
-
-                        // Fire and forget: the job talks back through `notify`,
-                        // the receive loop below keeps handling client messages.
-                        JobRunner.run deps email channel.Reader notify cts.Token
-                        |> ignore
-                }
+            let outgoing: Task =
+                match outbox with
+                | Some reader -> forward reader :> Task
+                | None -> send (Views.Input.expiredFragment ())
 
             let buffer = Array.zeroCreate 65536
 
             try
                 try
                     let mutable closed = false
-
                     while not closed do
                         let sb = StringBuilder()
                         let mutable finished = false
-
                         while not finished do
                             let! result = socket.ReceiveAsync(ArraySegment buffer, CancellationToken.None)
-
                             if result.MessageType = WebSocketMessageType.Close then
                                 finished <- true
                                 closed <- true
@@ -134,26 +103,25 @@ let handle (deps: PipelineDeps<'session, 'data>) (ctx: HttpContext) : Task =
 
                         if not closed then
                             match parseMessage (sb.ToString()) with
-                            | Some(StartAnalysis email) when jobEmail.IsNone ->
-                                do! startJob email
-                            | Some(StartAnalysis _) ->
-                                () // this socket already runs a job; ignore
+                            | Some(StartAnalysis email) ->
+                                sessionId |> Option.iter (fun id -> registry.Start(id, connectionId, email, deps))
                             | Some(MagicLink(email, url)) ->
-                                match magicLinks, jobEmail with
-                                | Some channel, Some _ ->
-                                    channel.Writer.TryWrite url |> ignore
-                                | _ ->
-                                    // A job must be started with an e-mail first;
-                                    // a magic link can never be the first message.
-                                    do! send (Views.Processing.errorFragment email "logowanie"
-                                                  "Najpierw rozpocznij analizę, podając adres e-mail.")
+                                sessionId |> Option.iter (fun id -> registry.SubmitMagicLink(id, connectionId, email, url))
                             | None -> ()
                 with
-                | :? WebSocketException -> () // abrupt client disconnect
-                | :? OperationCanceledException -> ()
+                | :? WebSocketException
+                | :? IO.IOException
+                | :? OperationCanceledException
+                | :? ObjectDisposedException -> ()
             finally
-                jobCts |> Option.iter _.Cancel()
-                releaseJob ()
+                sessionId |> Option.iter (fun id -> registry.Detach(id, connectionId))
+
+            try
+                do! outgoing
+            with
+            | :? WebSocketException
+            | :? IO.IOException
+            | :? OperationCanceledException -> ()
 
             if socket.State = WebSocketState.Open || socket.State = WebSocketState.CloseReceived then
                 try

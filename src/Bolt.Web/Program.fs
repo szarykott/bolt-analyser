@@ -8,10 +8,12 @@ open Bolt.Infrastrucutre.storage.Constants
 open Bolt.Models.BoltApi
 open Bolt.Scraper.ScrapePipeline
 open Bolt.Web.Jobs
+open Bolt.Web.JobSessions
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Logging
 
 /// Marker for WebApplicationFactory in integration tests.
 type BoltWebMarker() = class end
@@ -20,6 +22,9 @@ type BoltWebMarker() = class end
 let main args =
     let builder = WebApplication.CreateBuilder(args)
     builder.Services.AddSingleton<PipelineDeps<ScrapeSession, ScrapedData>>(Pipeline.realDeps) |> ignore
+    builder.Services.AddSingleton<JobRegistry>(fun sp ->
+        JobRegistry(TimeSpan.FromMinutes 3.0, sp.GetRequiredService<ILogger<JobRegistry>>()))
+    |> ignore
     let app = builder.Build()
 
 #if DEBUG
@@ -42,7 +47,8 @@ let main args =
         "/ws",
         Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
             let deps = ctx.RequestServices.GetRequiredService<PipelineDeps<ScrapeSession, ScrapedData>>()
-            WebSockets.handle deps ctx)
+            let registry = ctx.RequestServices.GetRequiredService<JobRegistry>()
+            WebSockets.handle deps registry ctx)
     )
     |> ignore
 
@@ -57,6 +63,19 @@ let main args =
     app.MapGet(
         "/start",
         Func<HttpContext, Threading.Tasks.Task>(fun ctx ->
+            let registry = ctx.RequestServices.GetRequiredService<JobRegistry>()
+            let existing =
+                match ctx.Request.Cookies.TryGetValue cookieName with
+                | true, value -> Some value
+                | _ -> None
+            let sessionId, created = registry.GetOrCreate existing
+            if created then
+                let cookie = CookieOptions()
+                cookie.HttpOnly <- true
+                cookie.Secure <- ctx.Request.IsHttps
+                cookie.SameSite <- SameSiteMode.Strict
+                cookie.Path <- "/"
+                ctx.Response.Cookies.Append(cookieName, sessionId, cookie)
             ctx.Response.ContentType <- "text/html; charset=utf-8"
             ctx.Response.WriteAsync(Views.Input.emailPage ()))
     )

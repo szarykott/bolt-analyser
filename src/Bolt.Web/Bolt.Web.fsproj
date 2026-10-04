@@ -14,6 +14,7 @@
     <Compile Include="Views/ClusterMap.fs" />
     <Compile Include="Views/Report.fs" />
     <Compile Include="Pipeline.fs" />
+    <Compile Include="JobSessions.fs" />
     <Compile Include="WebSockets.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
