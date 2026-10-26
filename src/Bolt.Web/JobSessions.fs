@@ -182,26 +182,38 @@ type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>, ?supportEm
             | Some(links, cts, runId) ->
                 logger.LogInformation("Analysis session {SessionId} started", id[..7])
                 let notify state =
-                    let html = stateFragment supportEmail email state
-                    lock session.Gate (fun () ->
-                        if session.RunId = runId && not session.Expired then
-                            publish session html
-                            session.AwaitingLink <-
+                    let savedErrors =
+                        lock session.Gate (fun () ->
+                            if session.RunId <> runId || session.Expired then None
+                            else
                                 match state with
-                                | AwaitingMagicLink _ -> true
-                                | _ -> false
-                            match state with
-                            | Done report -> session.RideErrors <- report.RideErrors
-                            | FailedAnalysis failure -> session.RideErrors <- failure.RideErrors
-                            | _ -> ()
-                            match state with
-                            | Done _
-                            | FailedAnalysis _
-                            | Failed _ ->
-                                session.Running <- false
-                                session.MagicLinks <- None
-                                activeEmails.TryRemove email |> ignore
-                            | _ -> ())
+                                | Done report -> session.RideErrors <- report.RideErrors
+                                | FailedAnalysis failure -> session.RideErrors <- failure.RideErrors
+                                | _ -> ()
+                                Some session.RideErrors)
+                    match savedErrors with
+                    | None -> ()
+                    | Some errors ->
+                        let html =
+                            try stateFragment supportEmail email state
+                            with ex ->
+                                logger.LogError(ex, "Could not render analysis session {SessionId}", id[..7])
+                                Views.Processing.renderFailureFragment email (not (Array.isEmpty errors))
+                        lock session.Gate (fun () ->
+                            if session.RunId = runId && not session.Expired then
+                                publish session html
+                                session.AwaitingLink <-
+                                    match state with
+                                    | AwaitingMagicLink _ -> true
+                                    | _ -> false
+                                match state with
+                                | Done _
+                                | FailedAnalysis _
+                                | Failed _ ->
+                                    session.Running <- false
+                                    session.MagicLinks <- None
+                                    activeEmails.TryRemove email |> ignore
+                                | _ -> ())
                     Task.CompletedTask
 
                 JobRunner.run deps email links.Reader notify cts.Token |> ignore

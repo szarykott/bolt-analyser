@@ -85,7 +85,8 @@ let private basicStatisticsNode (report: AnalysisReport) =
 let private pickupClustersNode (result: RideClustering.AnalysisResult) =
     let chart =
         [ ClusterMap.ridePointsLayer result
-          ClusterMap.centroidLayer result ]
+          if not (Array.isEmpty result.Clusters) then
+              ClusterMap.centroidLayer result ]
         |> Chart.combine
         |> ClusterMap.withMapStyle result.Points
     let chartId = "chart-ride-clusters-0"
@@ -97,6 +98,8 @@ let private pickupClustersNode (result: RideClustering.AnalysisResult) =
             str "Szare kropki nie należą do żadnego skupiska. Ciemny punkt wskazuje środek skupiska, "
             str "a godzina obok niego to średnia pora odbioru."
         ]
+        if Array.isEmpty result.Clusters then
+            p [] [ str "Nie znaleziono skupisk odbiorów. Na mapie pokazano wszystkie analizowane przejazdy." ]
         div [ _id chartId; _class "chart-container" ] []
         p [ _class "notes" ] [
             a [ _href "https://openfreemap.org" ] [ str "OpenFreeMap" ]
@@ -159,7 +162,7 @@ let reportFragmentWithSupport supportEmail (report: AnalysisReport) =
         div [ _class "summary-grid" ] [
             metricNode "Liczba przejazdów" (string report.RideCount)
             metricNode "Kursy niezakończone" (string report.NotFinishedRideCount)
-            metricNode "Kursy z błędami danych" (string report.RideErrors.Length)
+            metricNode "Błędy danych" (string report.RideErrors.Length)
             metricNode "Przejechany dystans" (fmt2 report.BasicStatistics.TotalDistanceKm + " km")
             metricNode "Zarobek kierowcy" (fmtMoney report.BasicStatistics.TotalEarnings)
         ]

@@ -8,17 +8,21 @@ open Giraffe.ViewEngine
 let nodes supportEmail analysisCompleted (errors: RideError[]) = [
     if not (Array.isEmpty errors) then
         section [ _class "report-notice" ] [
-            h2 [] [ str $"Kursy z błędami danych ({errors.Length})" ]
+            h2 [] [
+                if errors |> Array.forall (fun error -> error.OrderId.IsSome) then
+                    str $"Kursy z błędami danych ({errors.Length})"
+                else str $"Błędy danych ({errors.Length})"
+            ]
             p [] [
                 if analysisCompleted then str "Analizę wykonano na podstawie mniejszej liczby kursów. "
-                str "Kursy z błędami danych zostały pominięte."
+                str "Dane, których nie udało się odczytać, zostały pominięte."
             ]
             p [] [
                 a [ _href "/diagnostics.zip"; attr "download" "bolt-errors.zip" ] [ str "Pobierz diagnostykę błędnych kursów (ZIP)" ]
             ]
             p [] [ str "Pobierz ZIP przed zamknięciem strony, aby zachować diagnostykę." ]
             p [] [
-                str "ZIP zawiera dane wyłącznie błędnych kursów oraz szczegóły błędów. Możesz je przejrzeć przed wysłaniem. "
+                str "ZIP zawiera błędne dane z API oraz szczegóły błędów. Możesz je przejrzeć przed wysłaniem. "
                 match supportEmail with
                 | Some email ->
                     str "Jeśli chcesz zgłosić problem, dołącz pobrany ZIP do wiadomości na adres "
@@ -28,7 +32,11 @@ let nodes supportEmail analysisCompleted (errors: RideError[]) = [
             ]
             for error in errors do
                 details [] [
-                    summary [] [ str $"Kurs {error.OrderId}: {error.Message}" ]
+                    summary [] [
+                        match error.OrderId with
+                        | Some id -> str $"Kurs {id}: {error.Message}"
+                        | None -> str $"Błąd bez identyfikatora kursu: {error.Message}"
+                    ]
                     pre [ _class "diagnostic-json" ] [ str (RideDiagnostics.toJson error) ]
                 ]
         ]

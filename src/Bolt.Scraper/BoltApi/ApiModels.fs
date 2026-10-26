@@ -51,6 +51,6 @@ type ErrorResponse =
 type ApiError =
     | BoltError of ErrorResponse
     | NetworkError of exn
-    | DeserializationError of exn
+    | DeserializationError of error: exn * responseBody: string * endpoint: string
     | AuthError of string
-    | HttpError of status: HttpStatusCode * body: string
+    | HttpError of status: HttpStatusCode * body: string * endpoint: string * error: exn

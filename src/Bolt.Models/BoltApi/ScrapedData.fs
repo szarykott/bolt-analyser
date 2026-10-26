@@ -15,14 +15,30 @@ type RawOrder = {
 }
 
 type RideError = {
-    OrderId: int64
+    OrderId: int64 option
     Stage: string
     ExceptionType: string
     Message: string
     StackTrace: string
-    PreviousOrder: JsonElement
-    PastOrderDetail: JsonElement
+    PreviousOrder: JsonElement option
+    PastOrderDetail: JsonElement option
+    HistoryEntry: JsonElement option
+    ResponseBody: string option
+    Endpoint: string option
 }
+
+module RideError =
+    let create orderId stage (ex: exn) : RideError =
+        { OrderId = orderId
+          Stage = stage
+          ExceptionType = ex.GetType().FullName
+          Message = ex.Message
+          StackTrace = ex.ToString()
+          PreviousOrder = None
+          PastOrderDetail = None
+          HistoryEntry = None
+          ResponseBody = None
+          Endpoint = None }
 
 type ScrapedData = {
     Email: string
@@ -34,4 +50,5 @@ type ScrapedData = {
     OrderHistory: JsonNode[]
     Orders: RawOrder[]
     SkippedOrders: SkippedOrder[]
+    Diagnostics: RideError[]
 }

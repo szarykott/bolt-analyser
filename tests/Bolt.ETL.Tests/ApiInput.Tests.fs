@@ -248,12 +248,12 @@ let ``safe parser classifies missing data and preserves exact responses`` previo
     let raw = rawOrder 123L p d
     match (RideFactory.parseOrder raw).Data with
     | Bolt.Models.RideType.Error error ->
-        Assert.Equal(123L, error.OrderId)
+        Assert.Equal(Some 123L, error.OrderId)
         Assert.Equal("ride", error.Stage)
         Assert.Equal(typeof<NullReferenceException>.FullName, error.ExceptionType)
         Assert.Contains("RideFactory.get", error.StackTrace)
-        Assert.Equal(raw.PreviousOrder.GetRawText(), error.PreviousOrder.GetRawText())
-        Assert.Equal(raw.PastOrderDetail.GetRawText(), error.PastOrderDetail.GetRawText())
+        Assert.Equal(raw.PreviousOrder.GetRawText(), error.PreviousOrder.Value.GetRawText())
+        Assert.Equal(raw.PastOrderDetail.GetRawText(), error.PastOrderDetail.Value.GetRawText())
     | _ -> failwith "Expected a failed ride"
 
 [<Theory>]

@@ -97,7 +97,8 @@ let ``at most ten orders run together and results retain history order`` () : Ta
 
         match! work.WaitAsync(TimeSpan.FromSeconds 5.0) with
         | Error e -> failwithf "Unexpected API error: %A" e
-        | Ok(successful, failures) ->
+        | Ok(successful, failures, diagnostics) ->
+            Assert.Empty diagnostics
             Assert.Equal(10, maxActive)
             Assert.Equal<int>([| 1 .. 24 |], progress.ToArray())
             Assert.Empty failures
@@ -132,7 +133,10 @@ let ``failed order is retried twice then skipped`` () : Task =
         let! result = fetchOrderDetails cfg (handles 24) report CancellationToken.None
         match result with
         | Error e -> failwithf "Unexpected scrape error: %A" e
-        | Ok(successful, skipped) ->
+        | Ok(successful, skipped, diagnostics) ->
+            let diagnostic = Assert.Single diagnostics
+            Assert.Equal(Some 0L, diagnostic.OrderId)
+            Assert.Equal(Some "busy", diagnostic.ResponseBody)
             Assert.Equal(23, successful.Length)
             Assert.Equal(0L, skipped[0].OrderId)
             Assert.Equal("HTTP 429", skipped[0].Reason)
@@ -165,7 +169,8 @@ let ``second detail succeeds on the third attempt`` () : Task =
         let cfg = config send
         match! fetchOrderDetails cfg (handles 1) noProgress CancellationToken.None with
         | Error e -> failwithf "Unexpected scrape error: %A" e
-        | Ok(successful, skipped) ->
+        | Ok(successful, skipped, diagnostics) ->
+            Assert.Empty diagnostics
             Assert.Single successful |> ignore
             Assert.Empty skipped
         Assert.Equal(3, previousAttempts)
@@ -279,7 +284,7 @@ let ``malformed order is retained for diagnostics and does not fail scraping`` s
             Assert.Single data.Orders |> ignore
             match (Bolt.ETL.RideFactory.parseOrder data.Orders[0]).Data with
             | Bolt.Models.RideType.Error error ->
-                Assert.Equal(1L, error.OrderId)
+                Assert.Equal(Some 1L, error.OrderId)
                 Assert.Equal("previous_order", error.Stage)
                 Assert.False(String.IsNullOrEmpty error.StackTrace)
             | _ -> failwith "Expected this order to be classified as an error"
@@ -299,7 +304,7 @@ let ``null order responses become per ride diagnostics instead of losing the pay
             match (Bolt.ETL.RideFactory.parseOrder data.Orders[0]).Data with
             | Bolt.Models.RideType.Error error ->
                 let payload = if scenario = "null-order" then error.PreviousOrder else error.PastOrderDetail
-                Assert.Equal(JsonValueKind.Null, payload.ValueKind)
+                Assert.Equal(JsonValueKind.Null, payload.Value.ValueKind)
                 Assert.Contains("JsonException", error.ExceptionType)
             | _ -> failwith "Expected an error category"
         Assert.Contains(ScrapingOrderDetails(1, 1), progress)
@@ -308,12 +313,19 @@ let ``null order responses become per ride diagnostics instead of losing the pay
     }
 
 [<Theory; InlineData("null-history"); InlineData("missing-history")>]
-let ``invalid history fails before fetching details`` scenario : Task =
+let ``invalid history response preserves HTTP diagnostics before fetching details`` scenario : Task =
     task {
         let! result, _, previousRequests, detailRequests = scrapeSynthetic scenario
         match result with
-        | Ok _ -> failwith "Expected invalid history to fail"
-        | Error error -> Assert.Contains("DeserializationError", error)
+        | Error error -> failwithf "Expected diagnostic data: %s" error
+        | Ok data ->
+            Assert.Empty data.Orders
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.True(diagnostic.OrderId.IsNone)
+            Assert.Equal(Some "/orderDriver/v1/getOrderHistoryPaginated", diagnostic.Endpoint)
+            Assert.True(diagnostic.ResponseBody.IsSome)
+            Assert.Contains("Json", diagnostic.ExceptionType)
+            Assert.False(String.IsNullOrWhiteSpace diagnostic.StackTrace)
         Assert.Equal(0, previousRequests)
         Assert.Equal(0, detailRequests)
     }
@@ -330,7 +342,7 @@ let ``empty history produces an empty successful scrape`` () : Task =
         Assert.Equal(0, detailRequests)
     }
 
-let private scrapeMutated historyBody corruptedBody =
+let private scrapeMutatedResponse historyBody corruptedBody brokenEndpoint failureStatus =
     task {
         let mutable historyRequests = 0
         let mutable previousRequests = 0
@@ -352,11 +364,14 @@ let private scrapeMutated historyBody corruptedBody =
                         (pastOrderDetail ()).ToJsonString()
                     | path -> failwithf "Unexpected path %s" path
                 let body =
-                    if id = 2L && request.RequestUri.AbsolutePath.Contains("getPreviousOrder") then
+                    if id = 2L && request.RequestUri.AbsolutePath = brokenEndpoint then
                         corruptedBody |> Option.defaultValue ("{\"code\":0,\"message\":\"ok\",\"data\":" + data + "}")
                     else "{\"code\":0,\"message\":\"ok\",\"data\":" + data + "}"
                 // Bound broken pagination using the stub, since production ignores scrape cancellation here.
-                let status = if historyRequests > 3 then HttpStatusCode.TooManyRequests else HttpStatusCode.OK
+                let status =
+                    if historyRequests > 3 then HttpStatusCode.TooManyRequests
+                    elif id = 2L && request.RequestUri.AbsolutePath = brokenEndpoint then failureStatus
+                    else HttpStatusCode.OK
                 return new HttpResponseMessage(status, Content = new StringContent(body, Encoding.UTF8, "application/json"))
             }
         let cfg = config send
@@ -377,6 +392,12 @@ let private scrapeMutated historyBody corruptedBody =
             if Directory.Exists root then Directory.Delete(root, true)
     }
 
+let private scrapeMutatedAt historyBody corruptedBody brokenEndpoint =
+    scrapeMutatedResponse historyBody corruptedBody brokenEndpoint HttpStatusCode.OK
+
+let private scrapeMutated historyBody corruptedBody =
+    scrapeMutatedAt historyBody corruptedBody "/orderDriver/v1/getPreviousOrder"
+
 let private historyEntry id = $"""{{"order_handle":{{"order_id":{id},"city_id":1,"order_system":"bolt"}}}}"""
 let private mixedHistory = "{\"orders\":[" + historyEntry 1 + "," + historyEntry 2 + "]}"
 
@@ -386,14 +407,24 @@ let private mixedHistory = "{\"orders\":[" + historyEntry 1 + "," + historyEntry
 [<InlineData("true")>]
 [<InlineData("{\"order_handle\":null}")>]
 [<InlineData("{\"order_handle\":{\"order_id\":\"oops\",\"city_id\":1,\"order_system\":\"bolt\"}}")>]
-let ``known gap one malformed history entry throws away a valid history without diagnostics`` entry : Task =
+let ``malformed history entry is diagnosed without losing a valid course`` entry : Task =
     task {
         let history = "{\"orders\":[" + historyEntry 1 + "," + entry + "]}"
         let! result, thrown, (_, previous, details) = scrapeMutated history None
-        Assert.True(result.IsNone)
-        Assert.IsType<JsonException>(thrown.Value) |> ignore
-        Assert.Equal(0, previous)
-        Assert.Equal(0, details)
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Error error -> failwithf "Expected valid course and diagnostic: %s" error
+        | Ok data ->
+            Assert.Single data.Orders |> ignore
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.True(diagnostic.OrderId.IsNone)
+            Assert.Equal("order_history", diagnostic.Stage)
+            use expected = JsonDocument.Parse entry
+            Assert.True(JsonElement.DeepEquals(expected.RootElement, diagnostic.HistoryEntry.Value))
+            Assert.Contains("JsonException", diagnostic.ExceptionType)
+            Assert.False(String.IsNullOrWhiteSpace diagnostic.StackTrace)
+        Assert.Equal(1, previous)
+        Assert.Equal(1, details)
     }
 
 [<Theory>]
@@ -402,7 +433,7 @@ let ``known gap one malformed history entry throws away a valid history without 
 [<InlineData("null")>]
 [<InlineData("{\"code\":0}")>]
 [<InlineData("{\"code\":\"oops\",\"message\":\"ok\",\"data\":{}}")>]
-let ``known gap malformed HTTP body is skipped without its original payload or stack trace`` body : Task =
+let ``malformed HTTP body keeps its exact payload endpoint and exception for diagnostics`` body : Task =
     task {
         let! result, thrown, (_, previous, details) = scrapeMutated mixedHistory (Some body)
         Assert.True(thrown.IsNone)
@@ -413,6 +444,13 @@ let ``known gap malformed HTTP body is skipped without its original payload or s
             Assert.Single data.SkippedOrders |> ignore
             Assert.Equal(2L, data.SkippedOrders[0].OrderId)
             Assert.False(String.IsNullOrWhiteSpace data.SkippedOrders[0].Reason)
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.Equal(Some 2L, diagnostic.OrderId)
+            Assert.Equal(Some body, diagnostic.ResponseBody)
+            Assert.Equal("http_response", diagnostic.Stage)
+            Assert.Equal(Some "/orderDriver/v1/getPreviousOrder", diagnostic.Endpoint)
+            Assert.False(String.IsNullOrWhiteSpace diagnostic.ExceptionType)
+            Assert.Contains("at ", diagnostic.StackTrace)
             match (Bolt.ETL.RideFactory.parseOrder data.Orders[0]).Data with
             | Bolt.Models.RideType.Finished _ -> ()
             | _ -> failwith "The remaining course should be valid"
@@ -421,20 +459,24 @@ let ``known gap malformed HTTP body is skipped without its original payload or s
     }
 
 [<Fact>]
-let ``known gap all malformed HTTP bodies end the job without downloadable diagnostics`` () : Task =
+let ``all malformed HTTP bodies return diagnostic data even without a usable course`` () : Task =
     task {
         let history = "{\"orders\":[" + historyEntry 2 + "]}"
         let! result, thrown, (_, previous, details) = scrapeMutated history (Some "{")
         Assert.True(thrown.IsNone)
         match result.Value with
-        | Ok _ -> failwith "Expected all requests to fail"
-        | Error error -> Assert.StartsWith("Nie udało się pobrać żadnego kursu:", error)
+        | Error error -> failwithf "Expected downloadable diagnostics: %s" error
+        | Ok data ->
+            Assert.Empty data.Orders
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.Equal(Some "{", diagnostic.ResponseBody)
+            Assert.Equal(Some 2L, diagnostic.OrderId)
         Assert.Equal(3, previous)
         Assert.Equal(0, details)
     }
 
 [<Fact>]
-let ``known gap repeated cursor loops until the stub budget rejects another page`` () : Task =
+let ``known gap repeated cursor consumes the request budget before returning HTTP diagnostics`` () : Task =
     task {
         let history = "{\"cursor\":17,\"orders\":[" + historyEntry 1 + "]}"
         let! result, thrown, (pages, previous, details) = scrapeMutated history None
@@ -443,6 +485,98 @@ let ``known gap repeated cursor loops until the stub budget rejects another page
         Assert.Equal(0, previous)
         Assert.Equal(0, details)
         match result.Value with
-        | Ok _ -> failwith "Repeated cursor should hit the stub request budget"
-        | Error error -> Assert.Contains("HttpError", error)
+        | Error error -> failwithf "Expected HTTP diagnostics: %s" error
+        | Ok data ->
+            Assert.Empty data.Orders
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.Equal(Some "/orderDriver/v1/getOrderHistoryPaginated", diagnostic.Endpoint)
+            Assert.Contains("429", diagnostic.Message)
+    }
+
+[<Fact>]
+let ``history diagnostics recover an identifier even when the rest of the handle is invalid`` () : Task =
+    task {
+        let entry = """{"order_handle":{"order_id":"7","city_id":false,"order_system":"bolt"}}"""
+        let! result, thrown, _ = scrapeMutated ("{\"orders\":[" + historyEntry 1 + "," + entry + "]}") None
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Error error -> failwithf "Expected partial scrape: %s" error
+        | Ok data ->
+            Assert.Single data.Orders |> ignore
+            Assert.Equal(Some 7L, (Assert.Single data.Diagnostics).OrderId)
+    }
+
+[<Fact>]
+let ``a history containing only invalid entries still returns every fragment for diagnostics`` () : Task =
+    task {
+        let! result, thrown, (_, previous, details) = scrapeMutated "{\"orders\":[null,{}]}" None
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Error error -> failwithf "Expected diagnostic data: %s" error
+        | Ok data ->
+            Assert.Empty data.Orders
+            Assert.Equal(2, data.Diagnostics.Length)
+            Assert.True(data.Diagnostics |> Array.forall (fun error -> error.OrderId.IsNone))
+            Assert.Equal(JsonValueKind.Null, data.Diagnostics[0].HistoryEntry.Value.ValueKind)
+            Assert.Equal(JsonValueKind.Object, data.Diagnostics[1].HistoryEntry.Value.ValueKind)
+        Assert.Equal(0, previous)
+        Assert.Equal(0, details)
+    }
+
+[<Fact>]
+let ``invalid past order response retains its own endpoint and original body`` () : Task =
+    task {
+        let! result, thrown, (_, previous, details) =
+            scrapeMutatedAt mixedHistory (Some "bad past detail") "/driver/getPastOrderDetails"
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Error error -> failwithf "Expected partial scrape: %s" error
+        | Ok data ->
+            Assert.Single data.Orders |> ignore
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.Equal(Some "/driver/getPastOrderDetails", diagnostic.Endpoint)
+            Assert.Equal(Some "bad past detail", diagnostic.ResponseBody)
+            Assert.Equal(Some 2L, diagnostic.OrderId)
+            Assert.Contains("at ", diagnostic.StackTrace)
+        Assert.Equal(4, previous)
+        Assert.Equal(4, details)
+    }
+
+[<Fact>]
+let ``authentication response bodies cannot enter exported ride diagnostics or public errors`` () : Task =
+    task {
+        let send (request: HttpRequestMessage) _ =
+            let body =
+                if request.RequestUri.AbsolutePath = "/driver/getDriverProfile" then "{\"code\":503}"
+                elif request.RequestUri.AbsolutePath = "/driver/getAccessToken" then
+                    """{"code":0,"message":"ok","data":{"access_token":"DO_NOT_EXPORT"}}"""
+                else failwithf "Unexpected path %s" request.RequestUri.AbsolutePath
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK, Content = new StringContent(body)))
+        let cfg = config send
+        use client = cfg.HttpClient
+        match! scrapeRides { Config = cfg; Email = "mutation@example.test" } noProgress CancellationToken.None with
+        | Ok _ -> failwith "Authentication failure should not return ride diagnostics"
+        | Error error ->
+            Assert.Contains("DeserializationError", error)
+            Assert.DoesNotContain("DO_NOT_EXPORT", error)
+    }
+
+[<Theory; InlineData(true); InlineData(false)>]
+let ``HTTP status failures retain the response and stack even if every course fails`` allFailed : Task =
+    task {
+        let history = if allFailed then "{\"orders\":[" + historyEntry 2 + "]}" else mixedHistory
+        let body = "<html>upstream bad gateway</html>"
+        let! result, thrown, _ = scrapeMutatedResponse history (Some body) "/driver/getPastOrderDetails" HttpStatusCode.BadGateway
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Error error -> failwithf "Expected downloadable HTTP diagnostics: %s" error
+        | Ok data ->
+            Assert.Equal((if allFailed then 0 else 1), data.Orders.Length)
+            let diagnostic = Assert.Single data.Diagnostics
+            Assert.Equal(Some body, diagnostic.ResponseBody)
+            Assert.Equal(Some 2L, diagnostic.OrderId)
+            Assert.Equal(Some "/driver/getPastOrderDetails", diagnostic.Endpoint)
+            Assert.Equal(typeof<HttpRequestException>.FullName, diagnostic.ExceptionType)
+            Assert.Contains("502", diagnostic.Message)
+            Assert.Contains("at ", diagnostic.StackTrace)
     }

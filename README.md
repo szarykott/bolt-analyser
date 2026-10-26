@@ -12,6 +12,8 @@ The report can be downloaded as an HTML file. Signing in this way may log you ou
 
 Trips with invalid data are skipped individually. The report shows how many were excluded and offers a preview and a ZIP containing their original JSON responses and exception details. The ZIP remains available in the current browser session, including when no trip can be analysed; download it before closing the page.
 
+Diagnostics also include malformed history entries and HTTP responses, even when the trip ID is unavailable. The ZIP keeps the original response text, endpoint and exception stack trace; unreadable JSON is stored as text inside a valid JSON file.
+
 The optional `Diagnostics:SupportEmail` setting (environment variable `Diagnostics__SupportEmail`) adds a contact address and a `mailto:` link to the diagnostic notice and includes that address in the ZIP instructions. Diagnostic files are sent only if the user chooses to send them.
 
 ## 📁 What's in this repository

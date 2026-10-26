@@ -34,7 +34,10 @@ let internal prepare (data: ScrapedData) : PreparedRides =
     let rides = data.Orders |> Array.map RideFactory.parseOrder
     { FinishedRides = rides |> Array.choose (fun ride -> match ride.Data with Finished r -> Some r | _ -> None)
       NotFinishedRideCount = rides |> Array.sumBy (fun ride -> match ride.Data with DidNotHappen _ -> 1 | _ -> 0)
-      RideErrors = rides |> Array.choose (fun ride -> match ride.Data with RideType.Error error -> Some error | _ -> None) }
+      RideErrors =
+        rides
+        |> Array.choose (fun ride -> match ride.Data with RideType.Error error -> Some error | _ -> None)
+        |> Array.append data.Diagnostics }
 
 let internal runWithClustering cluster (data: ScrapedData) : Task<Result<AnalysisReport, AnalysisFailure>> =
     task {
@@ -46,7 +49,7 @@ let internal runWithClustering cluster (data: ScrapedData) : Task<Result<Analysi
             if Array.isEmpty allRides then
                 let message =
                     if Array.isEmpty errors then $"Nie znaleziono zakończonych przejazdów dla {data.Email}"
-                    else $"Nie udało się przeanalizować żadnego zakończonego kursu. Pominięto {errors.Length} kursów z błędami danych."
+                    else $"Nie udało się przeanalizować żadnego zakończonego kursu. Liczba błędów danych: {errors.Length}."
                 return Result.Error { Message = message; RideErrors = errors }
             else
                 let dates = allRides |> Array.map _.Times.CreatedTimestamp
@@ -57,7 +60,10 @@ let internal runWithClustering cluster (data: ScrapedData) : Task<Result<Analysi
                     Ok { Email = data.Email
                          GeneratedAt = DateTimeOffset.UtcNow
                          RideCount = allRides.Length
-                         SkippedOrders = data.SkippedOrders
+                         SkippedOrders =
+                            data.SkippedOrders
+                            |> Array.filter (fun skipped ->
+                                not (data.Diagnostics |> Array.exists (fun error -> error.Stage = "http_response" && error.OrderId = Some skipped.OrderId)))
                          NotFinishedRideCount = prepared.NotFinishedRideCount
                          RideErrors = errors
                          DateRange = Array.min dates, Array.max dates

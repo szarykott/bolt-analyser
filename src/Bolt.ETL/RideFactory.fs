@@ -102,10 +102,6 @@ module RideFactory =
             ride
         with ex ->
             { Data = RideType.Error
-                { OrderId = order.OrderId
-                  Stage = stage
-                  ExceptionType = ex.GetType().FullName
-                  Message = ex.Message
-                  StackTrace = ex.ToString()
-                  PreviousOrder = order.PreviousOrder.Clone()
-                  PastOrderDetail = order.PastOrderDetail.Clone() } }
+                { RideError.create (Some order.OrderId) stage ex with
+                    PreviousOrder = Some(order.PreviousOrder.Clone())
+                    PastOrderDetail = Some(order.PastOrderDetail.Clone()) } }

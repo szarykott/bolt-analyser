@@ -45,7 +45,8 @@ let private loadCached (email: string) : ScrapedData option =
                         { OrderId = handle.OrderHandle.OrderId
                           PreviousOrder = p
                           PastOrderDetail = d }) history previous details
-                  SkippedOrders = metadata.SkippedOrders |> Option.defaultValue [||] }
+                  SkippedOrders = metadata.SkippedOrders |> Option.defaultValue [||]
+                  Diagnostics = metadata.Diagnostics |> Option.defaultValue [||] }
         }
     else
         None
@@ -64,5 +65,5 @@ let realDeps: PipelineDeps<ScrapeSession, ScrapedData> = {
     AuthenticateWithUrl = ScrapeSession.authenticateWithUrl
     ScrapeRides = fun session progress ct -> scrapeRides session (describeProgress >> progress) ct
     RunAnalysis = Report.run
-    RideCountOf = fun data -> data.Orders.Length
+    RideCountOf = fun data -> data.Orders.Length + data.Diagnostics.Length
 }

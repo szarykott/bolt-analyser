@@ -14,13 +14,13 @@ open Bolt.Tests.ApiMutations
 let private verify raw =
     match (RideFactory.parseOrder raw).Data with
     | RideType.Error error ->
-        Assert.Equal(raw.OrderId, error.OrderId)
+        Assert.Equal(Some raw.OrderId, error.OrderId)
         Assert.Contains(error.Stage, [| "previous_order"; "past_order_detail"; "ride" |])
         Assert.False(String.IsNullOrWhiteSpace error.ExceptionType)
         Assert.False(String.IsNullOrWhiteSpace error.Message)
         Assert.False(String.IsNullOrWhiteSpace error.StackTrace)
-        Assert.Equal(raw.PreviousOrder.GetRawText(), error.PreviousOrder.GetRawText())
-        Assert.Equal(raw.PastOrderDetail.GetRawText(), error.PastOrderDetail.GetRawText())
+        Assert.Equal(raw.PreviousOrder.GetRawText(), error.PreviousOrder.Value.GetRawText())
+        Assert.Equal(raw.PastOrderDetail.GetRawText(), error.PastOrderDetail.Value.GetRawText())
         "diagnostic"
     | Finished _ -> "finished"
     | DidNotHappen _ -> "not-finished"

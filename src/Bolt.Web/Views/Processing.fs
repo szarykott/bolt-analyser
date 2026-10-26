@@ -28,3 +28,22 @@ let errorFragmentWithDiagnostics supportEmail errors (email: string) (step: stri
     |> render
 
 let errorFragment email step message = errorFragmentWithDiagnostics None [||] email step message
+
+let renderFailureFragment (email: string) hasDiagnostics =
+    panel [
+        div [ _class "flow-card error-card" ] [
+            h1 [] [ str "Nie udało się wyświetlić raportu" ]
+            p [] [ str "Wystąpił błąd podczas wyświetlania wyniku. Możesz spróbować ponownie przygotować analizę." ]
+            if hasDiagnostics then
+                p [] [
+                    str "Informacje o błędnych kursach zostały zachowane. "
+                    a [ _href "/diagnostics.zip"; attr "download" "bolt-errors.zip" ] [ str "Pobierz diagnostykę (ZIP)" ]
+                ]
+            form [ flag "ws-send" ] [
+                input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
+                input [ _type "hidden"; _name "email"; _value email ]
+                button [ _type "submit" ] [ str "Spróbuj ponownie" ]
+            ]
+        ]
+    ]
+    |> render

@@ -185,10 +185,10 @@ let ``safe parser classifies generated malformed responses without throwing`` se
         match ride.Data with
         | Bolt.Models.RideType.Error error ->
             finished && not (List.isEmpty fields)
-            && error.OrderId = raw.OrderId
+            && error.OrderId = Some raw.OrderId
             && not (String.IsNullOrWhiteSpace error.StackTrace)
-            && error.PreviousOrder.GetRawText() = raw.PreviousOrder.GetRawText()
-            && error.PastOrderDetail.GetRawText() = raw.PastOrderDetail.GetRawText()
+            && error.PreviousOrder.Value.GetRawText() = raw.PreviousOrder.GetRawText()
+            && error.PastOrderDetail.Value.GetRawText() = raw.PastOrderDetail.GetRawText()
         | Bolt.Models.RideType.Finished _ -> finished && List.isEmpty fields
         | Bolt.Models.RideType.DidNotHappen _ -> not finished)
     |> check seed

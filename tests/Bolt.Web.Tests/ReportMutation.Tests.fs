@@ -19,13 +19,14 @@ let private data orders : ScrapedData =
       ActivityHours = Unchecked.defaultof<JsonElement>
       OrderHistory = [||]
       Orders = orders
-      SkippedOrders = [||] }
+      SkippedOrders = [||]
+      Diagnostics = [||] }
 
 // Exercise the JSON write boundary used for the analytics request without a real service.
 let private cluster (source: RideClustering.RidesDataSource) : Task<RideClustering.AnalysisResult> =
     JsonSerializer.Serialize(source.Rows) |> ignore
     let points = RideClustering.toPoints source
-    // Keep the separately tested empty-cluster rendering defect from masking input defects.
+    // Use a consistent clustering response to isolate input mutations.
     Task.FromResult
         { Points = points
           Labels = Array.zeroCreate source.Rows.Length
@@ -95,15 +96,16 @@ let ``known gap negative cluster identity reaches invalid palette indexing`` () 
     Assert.Throws<IndexOutOfRangeException>(fun () -> Views.Report.reportFragment response |> ignore) |> ignore
 
 [<Fact>]
-let ``known gap valid all noise response crashes because there are no centroids to combine`` () =
+let ``valid all noise response renders the report and pickup points without centroids`` () =
     let original = Bolt.Web.Tests.ReportFixture.report
     let response: Bolt.ETL.Analytics.StDbscanResponse =
         { Labels = [| -1 |]; NPoints = 1; NClusters = 0; NNoise = 1; Clusters = [||] }
     let result = RideClustering.fromAnalyticsResponse original.PickupClusters.Points response
-    Assert.Throws<ArgumentException>(fun () -> Views.ClusterMap.centroidLayer result |> ignore) |> ignore
-    Assert.Throws<ArgumentException>(fun () ->
-        Views.Report.reportFragment { original with PickupClusters = result } |> ignore)
-    |> ignore
+    let html = Views.Report.reportFragment { original with PickupClusters = result } |> Net.WebUtility.HtmlDecode
+    Assert.Contains("Nie znaleziono skupisk odbiorów", html)
+    Assert.Contains("Noise · n=1", html)
+    Assert.Contains("id=\"basic-statistics\"", html)
+    Assert.Contains("id=\"chart-ride-clusters-0\"", html)
 
 type ReportMutationAudit(output: ITestOutputHelper) =
     [<Fact>]
@@ -132,8 +134,8 @@ type ReportMutationAudit(output: ITestOutputHelper) =
                     | RideType.Error _ ->
                         Assert.Equal(1, report.RideCount)
                         Assert.Single report.RideErrors |> ignore
-                        Assert.True(JsonElement.DeepEquals(raw.PreviousOrder, report.RideErrors[0].PreviousOrder))
-                        Assert.True(JsonElement.DeepEquals(raw.PastOrderDetail, report.RideErrors[0].PastOrderDetail))
+                        Assert.True(JsonElement.DeepEquals(raw.PreviousOrder, report.RideErrors[0].PreviousOrder.Value))
+                        Assert.True(JsonElement.DeepEquals(raw.PastOrderDetail, report.RideErrors[0].PastOrderDetail.Value))
                         RideDiagnostics.zip None report.RideErrors |> ignore
                         recovered <- recovered + 1
                     | _ -> accepted <- accepted + 1

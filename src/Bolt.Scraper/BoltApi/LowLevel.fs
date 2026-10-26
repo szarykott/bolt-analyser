@@ -44,16 +44,17 @@ module LowLevelApi =
                 Logger.debug $"[{resp.StatusCode}] {body}"
 #endif
                 
-                if resp.IsSuccessStatusCode then
+                try
+                    resp.EnsureSuccessStatusCode() |> ignore
                     try
                         match (Json.deserialize body).Code with
                         | 0 -> return Ok (Json.deserialize<'T> body)
                         | 503 -> return Error(AuthError "NOT_AUTHORIZED")
                         | _ -> return Error(BoltError(Json.deserialize<ErrorResponse> body))
                     with ex ->
-                        return Error(DeserializationError ex)
-                else
-                    return Error(HttpError(resp.StatusCode, body))
+                        return Error(DeserializationError(ex, body, req.RequestUri.AbsolutePath))
+                with :? HttpRequestException as ex ->
+                    return Error(HttpError(resp.StatusCode, body, req.RequestUri.AbsolutePath, ex))
             with ex ->
                 return Error(NetworkError ex)
         }

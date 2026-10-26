@@ -16,6 +16,7 @@ open Bolt.Models.BoltApi
 open Bolt.Scraper.ScrapePipeline
 open Bolt.Web.Jobs
 open Bolt.Web.Tests.ReportFixture
+open Bolt.Tests.BoltApiFixture
 
 let private fakeData: ScrapedData = {
     Email = "a@b.pl"
@@ -24,6 +25,7 @@ let private fakeData: ScrapedData = {
     OrderHistory = [||]
     Orders = [||]
     SkippedOrders = [||]
+    Diagnostics = [||]
 }
 
 // Fake deps: cached data, analysis returns instantly. CreateSession never
@@ -409,21 +411,130 @@ let ``diagnostics disappear when the disconnected session expires`` () =
         if not expired then Task.Delay(20).GetAwaiter().GetResult()
     Assert.True(expired, "The disconnected session should release its diagnostics")
 
-[<Theory; InlineData(false); InlineData(true)>]
-let ``known gap render failure loses already captured diagnostics before publishing them`` allNoise =
-    let clusters =
-        if allNoise then { report.PickupClusters with Labels = [| -1 |]; Clusters = [||]; NoiseCount = 1 }
-        else { report.PickupClusters with Labels = [||] }
+[<Theory; InlineData(0); InlineData(2)>]
+let ``render failure offers fallback and keeps the original diagnostics downloadable`` labelCount =
     let badReport =
         { report with
             RideErrors = [| rideError |]
-            PickupClusters = clusters }
+            PickupClusters = { report.PickupClusters with Labels = Array.zeroCreate labelCount } }
     let deps = { fakeDeps with RunAnalysis = fun _ -> Task.FromResult(Ok badReport) }
     use factory = makeFactoryWith deps
     let cookie = sessionCookie factory
     use socket = connectWithCookie factory cookie
     sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
-    let html = receiveUntil socket "wewnętrzny"
+    let html = receiveUntil socket "diagnostics.zip" |> Net.WebUtility.HtmlDecode
+    Assert.Contains("Nie udało się wyświetlić raportu", html)
+    Assert.DoesNotContain("report-content", html)
+    use response = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.OK, response.StatusCode)
+    use stream = new MemoryStream(response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult())
+    use zip = new ZipArchive(stream, ZipArchiveMode.Read)
+    use entry = zip.GetEntry("ride-1-99.json").Open()
+    use document = JsonDocument.Parse entry
+    let json = document.RootElement
+    Assert.Equal(rideError.StackTrace, json.GetProperty("stack_trace").GetString())
+    Assert.True(JsonElement.DeepEquals(rideError.PreviousOrder.Value, json.GetProperty("previous_order")))
+    Assert.True(JsonElement.DeepEquals(rideError.PastOrderDetail.Value, json.GetProperty("past_order_detail")))
+    socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "reconnect", CancellationToken.None).GetAwaiter().GetResult()
+    use resumed = connectWithCookie factory cookie
+    let replayed = receiveUntil resumed "diagnostics.zip" |> Net.WebUtility.HtmlDecode
+    Assert.Contains("Nie udało się wyświetlić raportu", replayed)
+    use again = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.OK, again.StatusCode)
+
+[<Fact>]
+let ``all noise report retains statistics and downloadable diagnostics`` () =
+    let data = { fakeData with Orders = [| rawOrder 1L (previousOrder ()) (pastOrderDetail ()); brokenOrder |] }
+    let cluster (source: Bolt.ETL.Analysis.RideClustering.RidesDataSource) : Task<Bolt.ETL.Analysis.RideClustering.AnalysisResult> =
+        Task.FromResult
+            { Points = Bolt.ETL.Analysis.RideClustering.toPoints source
+              Labels = Array.create source.Rows.Length -1
+              NoiseCount = source.Rows.Length
+              Clusters = [||] }
+    let deps =
+        { fakeDeps with
+            LoadCached = fun _ -> Some data
+            RunAnalysis = Bolt.Web.Report.runWithClustering cluster }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    let html = receiveUntil socket "report-content" |> Net.WebUtility.HtmlDecode
+    Assert.Contains("Nie znaleziono skupisk odbiorów", html)
+    Assert.Contains("id=\"basic-statistics\"", html)
+    Assert.Contains("16,00 zł", html)
+    Assert.Contains("Kursy z błędami danych (1)", html)
+    use response = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.OK, response.StatusCode)
+
+[<Fact>]
+let ``render fallback without course errors does not offer an unavailable zip`` () =
+    let bad = { report with PickupClusters = { report.PickupClusters with Labels = [||] } }
+    let deps = { fakeDeps with RunAnalysis = fun _ -> Task.FromResult(Ok bad) }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    let html = receiveUntil socket "wyświetlić" |> Net.WebUtility.HtmlDecode
+    Assert.Contains("Nie udało się wyświetlić raportu", html)
     Assert.DoesNotContain("diagnostics.zip", html)
     use response = download factory (Some cookie)
     Assert.Equal(Net.HttpStatusCode.NotFound, response.StatusCode)
+
+[<Fact>]
+let ``render fallback releases the job so the user can retry`` () =
+    let bad =
+        { report with
+            RideErrors = [| rideError |]
+            PickupClusters = { report.PickupClusters with Labels = [||] } }
+    let mutable attempts = 0
+    let deps =
+        { fakeDeps with
+            RunAnalysis = fun _ ->
+                let result = if Interlocked.Increment(&attempts) = 1 then bad else report
+                Task.FromResult(Ok result) }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    receiveUntil socket "diagnostics.zip" |> ignore
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    receiveUntil socket "report-content" |> ignore
+    Assert.Equal(2, attempts)
+    use response = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.NotFound, response.StatusCode)
+
+[<Theory; InlineData(true); InlineData(false)>]
+let ``early failures without any usable courses still offer diagnostics for the session`` httpResponse =
+    let body = "{"
+    use history = JsonDocument.Parse "{}"
+    let diagnostic =
+        if httpResponse then
+            let ex = Record.Exception(fun () -> JsonDocument.Parse body |> ignore)
+            { RideError.create None "http_response" ex with ResponseBody = Some body; Endpoint = Some "/orderDriver/v1/getOrderHistoryPaginated" }
+        else
+            let ex = Record.Exception(fun () -> Bolt.Infrastrucutre.Serialization.Json.deserializeElement<HistoryOrderHandle> history.RootElement |> ignore)
+            { RideError.create None "order_history" ex with HistoryEntry = Some(history.RootElement.Clone()) }
+    let data = { fakeData with Diagnostics = [| diagnostic |] }
+    let deps =
+        { fakeDeps with
+            LoadCached = fun _ -> Some data
+            RunAnalysis = Bolt.Web.Report.run
+            RideCountOf = Bolt.Web.Pipeline.realDeps.RideCountOf }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    let html = receiveUntil socket "diagnostics.zip" |> Net.WebUtility.HtmlDecode
+    Assert.Contains("Nie udało się przygotować analizy", html)
+    Assert.Contains("Błąd bez identyfikatora kursu", html)
+    use response = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.OK, response.StatusCode)
+    use stream = new MemoryStream(response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult())
+    use zip = new ZipArchive(stream, ZipArchiveMode.Read)
+    use entry = zip.GetEntry("ride-1-unknown.json").Open()
+    use json = JsonDocument.Parse entry
+    Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("order_id").ValueKind)
+    Assert.Equal(diagnostic.StackTrace, json.RootElement.GetProperty("stack_trace").GetString())
+    if httpResponse then Assert.Equal(body, json.RootElement.GetProperty("response_body").GetString())
+    else Assert.True(JsonElement.DeepEquals(history.RootElement, json.RootElement.GetProperty("history_entry")))

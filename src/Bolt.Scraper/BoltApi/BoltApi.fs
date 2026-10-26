@@ -64,8 +64,32 @@ module BoltClient =
                     cont <- false
 
         
-            let handles = acc |> Seq.map Json.deserializeNode<HistoryOrderHandle>
-            return (handles, acc)
+            let result =
+                let valid = ResizeArray<HistoryOrderHandle * JsonNode>()
+                let diagnostics = ResizeArray<RideError>()
+                for entry in acc do
+                    let raw = JsonSerializer.SerializeToElement(entry)
+                    try
+                        valid.Add(Json.deserializeElement<HistoryOrderHandle> raw, entry)
+                    with ex ->
+                        let orderId =
+                            if raw.ValueKind <> JsonValueKind.Object then None
+                            else
+                                match raw.TryGetProperty "order_handle" with
+                                | true, handle when handle.ValueKind = JsonValueKind.Object ->
+                                    match handle.TryGetProperty "order_id" with
+                                    | true, id when id.ValueKind = JsonValueKind.Number ->
+                                        match id.TryGetInt64() with true, value -> Some value | _ -> None
+                                    | true, id when id.ValueKind = JsonValueKind.String ->
+                                        match Int64.TryParse(id.GetString()) with true, value -> Some value | _ -> None
+                                    | _ -> None
+                                | _ -> None
+                        diagnostics.Add
+                            { RideError.create orderId "order_history" ex with
+                                HistoryEntry = Some raw }
+                let handles, history = valid.ToArray() |> Array.unzip
+                (handles, history, diagnostics.ToArray())
+            return result
         }
         
             
