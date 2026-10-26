@@ -184,4 +184,4 @@ let reportFragmentWithSupport supportEmail (report: AnalysisReport) =
     ]
     |> render
 
-let reportFragment report = reportFragmentWithSupport None report
+let reportFragment report = reportFragmentWithSupport (Some "analizabolta@protonmail.com") report
