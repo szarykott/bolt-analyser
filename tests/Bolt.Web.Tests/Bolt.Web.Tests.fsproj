@@ -16,6 +16,7 @@
     <ItemGroup>
         <Compile Include="../TestData/BoltApiFixture.fs" Link="BoltApiFixture.fs" />
         <Compile Include="ReportFixture.fs" />
+        <Compile Include="Diagnostics.Tests.fs" />
         <Compile Include="Report.Tests.fs" />
         <Compile Include="Views.Tests.fs" />
         <Compile Include="JobRunner.Tests.fs" />

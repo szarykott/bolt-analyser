@@ -22,6 +22,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\src\Bolt.ETL\Bolt.ETL.fsproj" />
         <ProjectReference Include="..\..\src\Bolt.Scraper\Bolt.Scraper.fsproj" />
         <ProjectReference Include="..\..\src\Bolt.Models\Bolt.Models.fsproj" />
     </ItemGroup>

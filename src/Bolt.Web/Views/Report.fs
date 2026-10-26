@@ -132,7 +132,7 @@ let sections (report: AnalysisReport) = [
     pickupClustersNode report.PickupClusters
 ]
 
-let reportFragment (report: AnalysisReport) =
+let reportFragmentWithSupport supportEmail (report: AnalysisReport) =
     let fromDate, toDate = report.DateRange
 
     let header = [
@@ -152,11 +152,14 @@ let reportFragment (report: AnalysisReport) =
                         li [] [ str $"Kurs {order.OrderId}: {order.Reason}" ]
                 ]
             ]
+        yield! Bolt.Web.Views.Diagnostics.nodes supportEmail true report.RideErrors
     ]
 
     let summary =
         div [ _class "summary-grid" ] [
             metricNode "Liczba przejazdów" (string report.RideCount)
+            metricNode "Kursy niezakończone" (string report.NotFinishedRideCount)
+            metricNode "Kursy z błędami danych" (string report.RideErrors.Length)
             metricNode "Przejechany dystans" (fmt2 report.BasicStatistics.TotalDistanceKm + " km")
             metricNode "Zarobek kierowcy" (fmtMoney report.BasicStatistics.TotalEarnings)
         ]
@@ -177,3 +180,5 @@ let reportFragment (report: AnalysisReport) =
         div [ _id "report-content" ] ([ div [ _class "report-header" ] header; summary ] @ sections report)
     ]
     |> render
+
+let reportFragment report = reportFragmentWithSupport None report

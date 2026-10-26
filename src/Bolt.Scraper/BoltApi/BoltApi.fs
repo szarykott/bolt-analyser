@@ -73,23 +73,24 @@ module BoltClient =
     let getPreviousOrder bolt orderHandle =
         let config = getConfig bolt
         taskResult {
-            let! response : JsonElement =
+            let! response : JsonElement option =
                 RequestBuilder.newRequest HttpMethod.Post (Uri(config.BaseUrl, $"orderDriver/v1/getPreviousOrder?{config.RubbishData |> mandatoryQueryParameters}"))
                 |> RequestBuilder.withJsonBody orderHandle
                 |> LowLevelApi.send config CancellationToken.None
             
-            return response
+            // Preserve null/missing data as an invalid order for per-ride diagnostics.
+            return response |> Option.defaultValue (JsonSerializer.SerializeToElement(null: obj))
         }
         
     let getPastOrderDetails bolt orderHandle =
         let config = getConfig bolt
         taskResult {
-            let! response : JsonElement =
+            let! response : JsonElement option =
                 RequestBuilder.newRequest HttpMethod.Post (Uri(config.BaseUrl, $"driver/getPastOrderDetails?{config.RubbishData |> mandatoryQueryParameters}"))
                 |> RequestBuilder.withJsonBody orderHandle
                 |> LowLevelApi.send config CancellationToken.None
             
-            return response
+            return response |> Option.defaultValue (JsonSerializer.SerializeToElement(null: obj))
         }
         
     let getActivityHours bolt =

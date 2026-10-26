@@ -4,6 +4,7 @@ open System
 open System.Globalization
 open Bolt.Models
 open Bolt.Models.BoltApi
+open Bolt.Infrastrucutre.Serialization
 
 module RideFactory =
     let private warsawTz = TimeZoneInfo.FindSystemTimeZoneById "Europe/Warsaw"                                                                                                                                                                                                                                       
@@ -81,3 +82,30 @@ module RideFactory =
             match ride.Data with
             | Finished r -> Some r
             | _ -> None)
+
+    /// Keep the original response for just this order when parsing or conversion fails.
+    let parseOrder (order: RawOrder) : Ride =
+        let mutable stage = "previous_order"
+        try
+            let previous = Json.deserializeElement<PreviousOrder> order.PreviousOrder
+            stage <- "past_order_detail"
+            let detail = Json.deserializeElement<PastOrderDetail> order.PastOrderDetail
+            stage <- "ride"
+            let ride = getRide previous detail
+            match ride.Data with
+            | Finished finished ->
+                if Array.isEmpty finished.Route.Stops then
+                    invalidOp "Kurs nie zawiera przystanku odbioru."
+                if not (Double.IsFinite(float finished.Route.RideDistance)) then
+                    invalidOp "Dystans kursu nie jest skończoną liczbą."
+            | _ -> ()
+            ride
+        with ex ->
+            { Data = RideType.Error
+                { OrderId = order.OrderId
+                  Stage = stage
+                  ExceptionType = ex.GetType().FullName
+                  Message = ex.Message
+                  StackTrace = ex.ToString()
+                  PreviousOrder = order.PreviousOrder.Clone()
+                  PastOrderDetail = order.PastOrderDetail.Clone() } }

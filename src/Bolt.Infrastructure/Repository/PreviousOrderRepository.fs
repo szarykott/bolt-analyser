@@ -14,3 +14,6 @@ module PreviousOrderRepository =
 
     let get email : PreviousOrder seq option =
         JsonStorage.readProfile email fileName
+
+    let getUnstructured email : System.Text.Json.JsonElement[] option =
+        JsonStorage.readProfile email fileName

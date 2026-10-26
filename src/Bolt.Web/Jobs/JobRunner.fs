@@ -68,7 +68,7 @@ let run
                 ct.ThrowIfCancellationRequested()
                 match result with
                 | Ok report -> do! notify (Done report)
-                | Error e -> do! notify (Failed("analiza", e))
+                | Error e -> do! notify (FailedAnalysis e)
             | None, None -> () // request-magic-link failed; already reported above
         with
         | :? OperationCanceledException -> ()

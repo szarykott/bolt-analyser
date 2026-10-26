@@ -3,6 +3,7 @@ module Bolt.Web.Pipeline
 open System
 open Bolt.ETL
 open Bolt.Models.BoltApi
+open Bolt.Infrastrucutre.Serialization
 open Bolt.Scraper.ScrapePipeline
 open Bolt.Web.Jobs
 #if DEBUG
@@ -30,16 +31,20 @@ let private loadCached (email: string) : ScrapedData option =
             let! profile = DriverProfileRepository.getUnstructured email
             let! activity = ActivityHoursRepository.getUnstructured email
             let! history = OrderHistoryRepository.getUnstructured email
-            let! previous = PreviousOrderRepository.get email
-            let! details = PastOrderDetailRepository.get email
+            let! previous = PreviousOrderRepository.getUnstructured email
+            let! details = PastOrderDetailRepository.getUnstructured email
             let! metadata = ScrapeMetadataRepository.get email
             return
                 { Email = email
                   Profile = profile
                   ActivityHours = activity
                   OrderHistory = history
-                  PreviousOrders = Array.ofSeq previous
-                  PastOrderDetails = Array.ofSeq details
+                  Orders =
+                    Array.map3 (fun historyEntry p d ->
+                        let handle = Json.deserializeNode<HistoryOrderHandle> historyEntry
+                        { OrderId = handle.OrderHandle.OrderId
+                          PreviousOrder = p
+                          PastOrderDetail = d }) history previous details
                   SkippedOrders = metadata.SkippedOrders |> Option.defaultValue [||] }
         }
     else
@@ -59,5 +64,5 @@ let realDeps: PipelineDeps<ScrapeSession, ScrapedData> = {
     AuthenticateWithUrl = ScrapeSession.authenticateWithUrl
     ScrapeRides = fun session progress ct -> scrapeRides session (describeProgress >> progress) ct
     RunAnalysis = Report.run
-    RideCountOf = fun data -> data.PreviousOrders.Length
+    RideCountOf = fun data -> data.Orders.Length
 }

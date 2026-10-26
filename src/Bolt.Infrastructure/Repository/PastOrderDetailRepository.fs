@@ -14,3 +14,6 @@ module PastOrderDetailRepository =
 
     let get email : PastOrderDetail seq option =
         JsonStorage.readProfile email fileName
+
+    let getUnstructured email : System.Text.Json.JsonElement[] option =
+        JsonStorage.readProfile email fileName

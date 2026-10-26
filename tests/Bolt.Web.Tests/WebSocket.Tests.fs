@@ -2,6 +2,8 @@ module Bolt.Web.Tests.WebSocketTests
 
 open System
 open System.Net.WebSockets
+open System.IO
+open System.IO.Compression
 open System.Text
 open System.Text.Json
 open System.Threading
@@ -20,14 +22,13 @@ let private fakeData: ScrapedData = {
     Profile = JsonDocument.Parse("{}").RootElement
     ActivityHours = JsonDocument.Parse("{}").RootElement
     OrderHistory = [||]
-    PreviousOrders = [||]
-    PastOrderDetails = [||]
+    Orders = [||]
     SkippedOrders = [||]
 }
 
 // Fake deps: cached data, analysis returns instantly. CreateSession never
 // talks to the network because every other function is faked. RideCountOf
-// is faked non-zero so the empty PreviousOrders array doesn't trip the guard.
+// is faked non-zero so the empty Orders array doesn't trip the guard.
 let private fakeDeps: PipelineDeps<ScrapeSession, ScrapedData> = {
     LoadCached = fun _ -> Some fakeData
     CreateSession = ScrapeSession.create
@@ -309,3 +310,101 @@ let ``another browser cannot resume a waiting job`` () =
     receiveUntil other "Najpierw rozpocznij analizę" |> ignore
     sendText owner """{"msgType":"magic-link","email":"a@b.pl","url":"https://link"}"""
     receiveUntil owner "report-content" |> ignore
+
+let private download factory (cookie: string option) =
+    use http = (factory: WebApplicationFactory<Bolt.Web.Program.BoltWebMarker>).CreateClient()
+    use request = new Net.Http.HttpRequestMessage(Net.Http.HttpMethod.Get, "/diagnostics.zip")
+    cookie |> Option.iter (fun value -> request.Headers.Add("Cookie", value))
+    http.SendAsync(request).GetAwaiter().GetResult()
+
+[<Fact>]
+let ``all malformed rides still offer a session scoped downloadable zip`` () =
+    let data = { fakeData with Orders = [| brokenOrder |] }
+    let deps =
+        { fakeDeps with
+            LoadCached = fun _ -> Some data
+            RunAnalysis = Bolt.Web.Report.run }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    let html = receiveUntil socket "diagnostics.zip"
+    Assert.Contains("Nie udało się przygotować analizy", System.Net.WebUtility.HtmlDecode html)
+
+    use response = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.OK, response.StatusCode)
+    Assert.Equal("application/zip", response.Content.Headers.ContentType.MediaType)
+    Assert.Contains("no-store", response.Headers.CacheControl.ToString())
+    Assert.Contains("bolt-errors.zip", response.Content.Headers.ContentDisposition.ToString())
+    use stream = new MemoryStream(response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult())
+    use archive = new ZipArchive(stream, ZipArchiveMode.Read)
+    use entry = archive.GetEntry("ride-1-99.json").Open()
+    use json = JsonDocument.Parse entry
+    Assert.Equal(99L, json.RootElement.GetProperty("order_id").GetInt64())
+    Assert.Contains("RideFactory", json.RootElement.GetProperty("stack_trace").GetString())
+
+    use anonymous = download factory None
+    Assert.Equal(Net.HttpStatusCode.NotFound, anonymous.StatusCode)
+    use other = download factory (Some(sessionCookie factory))
+    Assert.Equal(Net.HttpStatusCode.NotFound, other.StatusCode)
+
+    // Reconnecting retains both the explanation and the download.
+    socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "reconnect", CancellationToken.None).GetAwaiter().GetResult()
+    use resumed = connectWithCookie factory cookie
+    receiveUntil resumed "diagnostics.zip" |> ignore
+    use replayed = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.OK, replayed.StatusCode)
+
+[<Fact>]
+let ``completed partial report exposes only its failed rides in the archive`` () =
+    let deps = { fakeDeps with RunAnalysis = fun _ -> Task.FromResult(Ok { report with RideErrors = [| rideError |] }) }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    receiveUntil socket "diagnostics.zip" |> ignore
+    use response = download factory (Some cookie)
+    use stream = new MemoryStream(response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult())
+    use archive = new ZipArchive(stream, ZipArchiveMode.Read)
+    Assert.Equal(2, archive.Entries.Count)
+    Assert.NotNull(archive.GetEntry("ride-1-99.json"))
+
+[<Fact>]
+let ``starting a new analysis clears old diagnostics before new results arrive`` () =
+    let secondRun = TaskCompletionSource<Result<Bolt.Web.Report.AnalysisReport, Bolt.Web.Report.AnalysisFailure>>(TaskCreationOptions.RunContinuationsAsynchronously)
+    let mutable runs = 0
+    let deps =
+        { fakeDeps with
+            RunAnalysis = fun _ ->
+                if Interlocked.Increment(&runs) = 1 then Task.FromResult(Ok { report with RideErrors = [| rideError |] })
+                else secondRun.Task }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    receiveUntil socket "diagnostics.zip" |> ignore
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    receiveUntil socket "Trwa analiza" |> ignore
+    try
+        use response = download factory (Some cookie)
+        Assert.Equal(Net.HttpStatusCode.NotFound, response.StatusCode)
+    finally
+        secondRun.TrySetResult(Ok report) |> ignore
+    receiveUntil socket "report-content" |> ignore
+
+[<Fact>]
+let ``diagnostics disappear when the disconnected session expires`` () =
+    let deps = { fakeDeps with RunAnalysis = fun _ -> Task.FromResult(Ok { report with RideErrors = [| rideError |] }) }
+    use factory = makeFactoryWithGrace deps (TimeSpan.FromMilliseconds 100.)
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    receiveUntil socket "diagnostics.zip" |> ignore
+    socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "leaving", CancellationToken.None).GetAwaiter().GetResult()
+    use timeout = new CancellationTokenSource(TimeSpan.FromSeconds 5.)
+    let mutable expired = false
+    while not expired && not timeout.IsCancellationRequested do
+        use response = download factory (Some cookie)
+        expired <- response.StatusCode = Net.HttpStatusCode.NotFound
+        if not expired then Task.Delay(20).GetAwaiter().GetResult()
+    Assert.True(expired, "The disconnected session should release its diagnostics")

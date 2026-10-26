@@ -229,7 +229,7 @@ let private scrapeSynthetic scenario =
                     if scenario = "null-order" then "null" else previous.ToJsonString()
                 | "/driver/getPastOrderDetails" ->
                     Interlocked.Increment(&detailRequests) |> ignore
-                    detail.ToJsonString()
+                    if scenario = "null-detail" then "null" else detail.ToJsonString()
                 | path -> failwithf "Unexpected synthetic request: %s" path
             Task.FromResult(response data)
         let cfg = config send
@@ -251,18 +251,17 @@ let private scrapeSynthetic scenario =
 [<InlineData("valid")>]
 [<InlineData("missing-payment")>]
 [<InlineData("bad-payment-text")>]
-let ``scraping can succeed with data that later crashes ride conversion`` scenario : Task =
+let ``scraping preserves raw data for per ride conversion`` scenario : Task =
     task {
         let! result, progress, previousRequests, detailRequests = scrapeSynthetic scenario
         match result with
         | Error error -> failwithf "Unexpected scrape error: %s" error
         | Ok data ->
-            Assert.Single data.PreviousOrders |> ignore
-            Assert.Single data.PastOrderDetails |> ignore
+            Assert.Single data.Orders |> ignore
             Assert.Empty data.SkippedOrders
-            if scenario = "missing-payment" then Assert.True(data.PastOrderDetails[0].Payment.IsNone)
+            if scenario = "missing-payment" then Assert.False(data.Orders[0].PastOrderDetail.TryGetProperty("payment") |> fst)
             if scenario = "bad-payment-text" then
-                Assert.Equal("", data.PastOrderDetails[0].Payment.Value.Items[0].TrailingComponent.Text)
+                Assert.Equal("", data.Orders[0].PastOrderDetail.GetProperty("payment").GetProperty("items").[0].GetProperty("trailing_component").GetProperty("text").GetString())
         Assert.Contains(ScrapingOrderDetails(1, 1), progress)
         Assert.Equal(1, previousRequests)
         Assert.Equal(1, detailRequests)
@@ -271,27 +270,41 @@ let ``scraping can succeed with data that later crashes ride conversion`` scenar
 [<Theory>]
 [<InlineData("bad-distance")>]
 [<InlineData("missing-stops")>]
-let ``malformed order fails after fetch completion without retrying or skipping it`` scenario : Task =
+let ``malformed order is retained for diagnostics and does not fail scraping`` scenario : Task =
     task {
         let! result, progress, previousRequests, detailRequests = scrapeSynthetic scenario
         match result with
-        | Ok _ -> failwith "Expected typed deserialization to fail"
-        | Error error -> Assert.StartsWith("Could not parse scraped data:", error)
+        | Error error -> failwithf "Unexpected scrape failure: %s" error
+        | Ok data ->
+            Assert.Single data.Orders |> ignore
+            match (Bolt.ETL.RideFactory.parseOrder data.Orders[0]).Data with
+            | Bolt.Models.RideType.Error error ->
+                Assert.Equal(1L, error.OrderId)
+                Assert.Equal("previous_order", error.Stage)
+                Assert.False(String.IsNullOrEmpty error.StackTrace)
+            | _ -> failwith "Expected this order to be classified as an error"
         Assert.Contains(ScrapingOrderDetails(1, 1), progress)
         Assert.Equal(1, previousRequests)
         Assert.Equal(1, detailRequests)
     }
 
-[<Fact>]
-let ``null order data is rejected at the envelope and retried three times`` () : Task =
+[<Theory; InlineData("null-order"); InlineData("null-detail")>]
+let ``null order responses become per ride diagnostics instead of losing the payload`` scenario : Task =
     task {
-        let! result, progress, previousRequests, detailRequests = scrapeSynthetic "null-order"
+        let! result, progress, previousRequests, detailRequests = scrapeSynthetic scenario
         match result with
-        | Ok _ -> failwith "Expected all orders to be skipped"
-        | Error error -> Assert.StartsWith("Nie udało się pobrać żadnego kursu:", error)
-        Assert.True(progress |> List.exists (function ScrapingOrderFailed(1, 1, 1L, _) -> true | _ -> false))
-        Assert.Equal(3, previousRequests)
-        Assert.Equal(0, detailRequests)
+        | Error error -> failwithf "Unexpected fetch error: %s" error
+        | Ok data ->
+            Assert.Empty data.SkippedOrders
+            match (Bolt.ETL.RideFactory.parseOrder data.Orders[0]).Data with
+            | Bolt.Models.RideType.Error error ->
+                let payload = if scenario = "null-order" then error.PreviousOrder else error.PastOrderDetail
+                Assert.Equal(JsonValueKind.Null, payload.ValueKind)
+                Assert.Contains("JsonException", error.ExceptionType)
+            | _ -> failwith "Expected an error category"
+        Assert.Contains(ScrapingOrderDetails(1, 1), progress)
+        Assert.Equal(1, previousRequests)
+        Assert.Equal(1, detailRequests)
     }
 
 [<Theory; InlineData("null-history"); InlineData("missing-history")>]
@@ -312,8 +325,7 @@ let ``empty history produces an empty successful scrape`` () : Task =
         match result with
         | Error error -> failwithf "Unexpected scrape error: %s" error
         | Ok data ->
-            Assert.Empty data.PreviousOrders
-            Assert.Empty data.PastOrderDetails
+            Assert.Empty data.Orders
         Assert.Equal(0, previousRequests)
         Assert.Equal(0, detailRequests)
     }

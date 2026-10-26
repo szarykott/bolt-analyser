@@ -23,7 +23,11 @@ let main args =
     let builder = WebApplication.CreateBuilder(args)
     builder.Services.AddSingleton<PipelineDeps<ScrapeSession, ScrapedData>>(Pipeline.realDeps) |> ignore
     builder.Services.AddSingleton<JobRegistry>(fun sp ->
-        JobRegistry(TimeSpan.FromMinutes 3.0, sp.GetRequiredService<ILogger<JobRegistry>>()))
+        let supportEmail =
+            builder.Configuration.GetValue<string>("Diagnostics:SupportEmail")
+            |> Option.ofObj
+            |> Option.filter (String.IsNullOrWhiteSpace >> not)
+        JobRegistry(TimeSpan.FromMinutes 3.0, sp.GetRequiredService<ILogger<JobRegistry>>(), ?supportEmail = supportEmail))
     |> ignore
     let app = builder.Build()
 
@@ -79,6 +83,25 @@ let main args =
             ctx.Response.ContentType <- "text/html; charset=utf-8"
             ctx.Response.WriteAsync(Views.Input.emailPage ()))
     )
+    |> ignore
+
+    app.MapGet(
+        "/diagnostics.zip",
+        Func<HttpContext, IResult>(fun ctx ->
+            ctx.Response.Headers.CacheControl <- "no-store"
+            let registry = ctx.RequestServices.GetRequiredService<JobRegistry>()
+            let errors =
+                match ctx.Request.Cookies.TryGetValue cookieName with
+                | true, id -> registry.GetDiagnostics id
+                | _ -> None
+            match errors with
+            | None -> Results.NotFound()
+            | Some errors ->
+                let supportEmail =
+                    ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue<string>("Diagnostics:SupportEmail")
+                    |> Option.ofObj
+                    |> Option.filter (String.IsNullOrWhiteSpace >> not)
+                Results.File(RideDiagnostics.zip supportEmail errors, "application/zip", "bolt-errors.zip")))
     |> ignore
 
     app.MapGet(

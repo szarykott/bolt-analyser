@@ -48,6 +48,7 @@ type RideThatDidNotHappen =
 type RideType =
     | Finished of FinishedRide
     | DidNotHappen of RideThatDidNotHappen
+    | Error of Bolt.Models.BoltApi.RideError
 
 type Ride = {
     Data: RideType

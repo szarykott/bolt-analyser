@@ -240,3 +240,42 @@ let ``zero distance is accepted but per ride price per kilometre divides by zero
           Snow = 0.0<Bolt.Models.Meteo.cm> }
     Assert.Throws<DivideByZeroException>(fun () ->
         PerRide1.RideRow.fromRide (fun _ -> weather) (fun _ -> None) ride |> ignore) |> ignore
+
+[<Theory; MemberData(nameof optionalFields)>]
+let ``safe parser classifies missing data and preserves exact responses`` previous path missing =
+    let p, d = previousOrder (), pastOrderDetail ()
+    mutate path (if missing then None else Some "null") (if previous then p else d) |> ignore
+    let raw = rawOrder 123L p d
+    match (RideFactory.parseOrder raw).Data with
+    | Bolt.Models.RideType.Error error ->
+        Assert.Equal(123L, error.OrderId)
+        Assert.Equal("ride", error.Stage)
+        Assert.Equal(typeof<NullReferenceException>.FullName, error.ExceptionType)
+        Assert.Contains("RideFactory.get", error.StackTrace)
+        Assert.Equal(raw.PreviousOrder.GetRawText(), error.PreviousOrder.GetRawText())
+        Assert.Equal(raw.PastOrderDetail.GetRawText(), error.PastOrderDetail.GetRawText())
+    | _ -> failwith "Expected a failed ride"
+
+[<Theory>]
+[<InlineData(true, "ride_distance_str", "\"\"", "previous_order")>]
+[<InlineData(false, "earnings/accordion_items/0/value", "\"\"", "past_order_detail")>]
+[<InlineData(false, "earnings/accordion_items", "[]", "ride")>]
+[<InlineData(true, "stops", "[]", "ride")>]
+[<InlineData(true, "ride_distance_str", "\"NaNkm\"", "ride")>]
+let ``safe parser captures deserialization conversion and pickup validation failures`` previous path value stage =
+    let p, d = previousOrder (), pastOrderDetail ()
+    mutate path (Some value) (if previous then p else d) |> ignore
+    match (RideFactory.parseOrder (rawOrder 1L p d)).Data with
+    | Bolt.Models.RideType.Error error ->
+        Assert.Equal(stage, error.Stage)
+        Assert.False(String.IsNullOrWhiteSpace error.Message)
+        Assert.False(String.IsNullOrWhiteSpace error.StackTrace)
+    | _ -> failwith "Expected an error category"
+
+[<Fact>]
+let ``safe parser keeps finished and cancelled categories`` () =
+    let finished = RideFactory.parseOrder (rawOrder 1L (previousOrder ()) (pastOrderDetail ()))
+    let cancelled = RideFactory.parseOrder (rawOrder 2L (cancelledOrder ()) (cancelledDetail ()))
+    match finished.Data, cancelled.Data with
+    | Bolt.Models.RideType.Finished _, Bolt.Models.RideType.DidNotHappen _ -> ()
+    | _ -> failwith "Expected original ride categories"

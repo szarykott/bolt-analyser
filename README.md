@@ -10,6 +10,10 @@ The web app asks for the email address associated with a Bolt driver account and
 
 The report can be downloaded as an HTML file. Signing in this way may log you out of the Bolt app. In the production build, account data is used to generate the report and is not stored on the server.
 
+Trips with invalid data are skipped individually. The report shows how many were excluded and offers a preview and a ZIP containing their original JSON responses and exception details. The ZIP remains available in the current browser session, including when no trip can be analysed; download it before closing the page.
+
+The optional `Diagnostics:SupportEmail` setting (environment variable `Diagnostics__SupportEmail`) adds a contact address and a `mailto:` link to the diagnostic notice and includes that address in the ZIP instructions. Diagnostic files are sent only if the user chooses to send them.
+
 ## 📁 What's in this repository
 
 - `src/Bolt.Web` — the browser flow, progress updates and report UI.

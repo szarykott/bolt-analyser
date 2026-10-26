@@ -8,6 +8,22 @@ open System.Text.Json.Nodes
 /// data.
 type SkippedOrder = { OrderId: int64; Reason: string }
 
+type RawOrder = {
+    OrderId: int64
+    PreviousOrder: JsonElement
+    PastOrderDetail: JsonElement
+}
+
+type RideError = {
+    OrderId: int64
+    Stage: string
+    ExceptionType: string
+    Message: string
+    StackTrace: string
+    PreviousOrder: JsonElement
+    PastOrderDetail: JsonElement
+}
+
 type ScrapedData = {
     Email: string
     /// Raw getDriverProfile response; nothing reads it typed yet.
@@ -16,7 +32,6 @@ type ScrapedData = {
     ActivityHours: JsonElement
     /// Raw order-history entries as returned by getOrderHistory.
     OrderHistory: JsonNode[]
-    PreviousOrders: PreviousOrder[]
-    PastOrderDetails: PastOrderDetail[]
+    Orders: RawOrder[]
     SkippedOrders: SkippedOrder[]
 }

@@ -3,6 +3,14 @@ module Bolt.Web.Tests.ReportFixture
 open System
 open Bolt.Web.Report
 open Bolt.ETL.Analysis.BasicStatistics
+open Bolt.Tests.BoltApiFixture
+
+let brokenOrder = rawOrder 99L (previousOrder ()) (pastOrderDetail () |> mutate "payment" None)
+
+let rideError =
+    match (Bolt.ETL.RideFactory.parseOrder brokenOrder).Data with
+    | Bolt.Models.RideType.Error error -> error
+    | _ -> failwith "Expected a diagnostic fixture"
 
 let private highlight date fromAddress toAddress distance earnings : RideHighlight =
     { Date = DateTimeOffset.Parse date
@@ -16,6 +24,8 @@ let report: AnalysisReport = {
     GeneratedAt = DateTimeOffset.Parse "2026-07-12T10:00Z"
     RideCount = 42
     SkippedOrders = [||]
+    NotFinishedRideCount = 0
+    RideErrors = [||]
     DateRange = (DateTimeOffset.Parse "2026-01-01Z", DateTimeOffset.Parse "2026-06-30Z")
     BasicStatistics =
         { TotalPaid = 1434.50m

@@ -8,6 +8,7 @@ open System.Threading.Channels
 open System.Threading.Tasks
 open Microsoft.Extensions.Logging
 open Bolt.Web.Jobs
+open Bolt.Models.BoltApi
 
 let cookieName = "bolt-analysis-session"
 
@@ -29,19 +30,22 @@ type private Session = {
     mutable RunId: Guid
     mutable Expiry: CancellationTokenSource option
     mutable Expired: bool
+    mutable RideErrors: RideError[]
 }
 
-let private stateFragment email state =
+let private stateFragment supportEmail email state =
     match state with
     | CheckingCache -> Views.Processing.progressFragment "Sprawdzanie zapisanych danych…" ""
     | Authenticating -> Views.Processing.progressFragment "Logowanie…" ""
     | AwaitingMagicLink error -> Views.Input.magicLinkFragment email error
     | ScrapingRides detail -> Views.Processing.progressFragment "Pobieranie przejazdów…" detail
     | RunningAnalysis -> Views.Processing.progressFragment "Trwa analiza…" ""
-    | Done report -> Views.Report.reportFragment report
+    | Done report -> Views.Report.reportFragmentWithSupport supportEmail report
     | Failed(step, message) -> Views.Processing.errorFragment email step message
+    | FailedAnalysis failure ->
+        Views.Processing.errorFragmentWithDiagnostics supportEmail failure.RideErrors email "analiza" failure.Message
 
-type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>) =
+type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>, ?supportEmail: string) =
     let sessions = ConcurrentDictionary<string, Session>()
     let activeEmails = ConcurrentDictionary<string, byte>()
 
@@ -93,7 +97,8 @@ type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>) =
                       AwaitingLink = false
                       RunId = Guid.Empty
                       Expiry = None
-                      Expired = false }
+                      Expired = false
+                      RideErrors = [||] }
 
                 if sessions.TryAdd(id, session) then
                     lock session.Gate (fun () -> scheduleExpiry id session)
@@ -168,6 +173,7 @@ type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>) =
                             session.Running <- true
                             session.AwaitingLink <- false
                             session.RunId <- runId
+                            session.RideErrors <- [||]
                             Some(links, cts, runId)
                     | _ -> None)
 
@@ -176,7 +182,7 @@ type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>) =
             | Some(links, cts, runId) ->
                 logger.LogInformation("Analysis session {SessionId} started", id[..7])
                 let notify state =
-                    let html = stateFragment email state
+                    let html = stateFragment supportEmail email state
                     lock session.Gate (fun () ->
                         if session.RunId = runId && not session.Expired then
                             publish session html
@@ -185,7 +191,12 @@ type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>) =
                                 | AwaitingMagicLink _ -> true
                                 | _ -> false
                             match state with
+                            | Done report -> session.RideErrors <- report.RideErrors
+                            | FailedAnalysis failure -> session.RideErrors <- failure.RideErrors
+                            | _ -> ()
+                            match state with
                             | Done _
+                            | FailedAnalysis _
                             | Failed _ ->
                                 session.Running <- false
                                 session.MagicLinks <- None
@@ -194,6 +205,14 @@ type JobRegistry(gracePeriod: TimeSpan, logger: ILogger<JobRegistry>) =
                     Task.CompletedTask
 
                 JobRunner.run deps email links.Reader notify cts.Token |> ignore
+
+    member _.GetDiagnostics(id: string) =
+        match sessions.TryGetValue id with
+        | false, _ -> None
+        | true, session ->
+            lock session.Gate (fun () ->
+                if session.Expired || Array.isEmpty session.RideErrors then None
+                else Some session.RideErrors)
 
     member _.SubmitMagicLink(id: string, connectionId: Guid, email: string, url: string) =
         match sessions.TryGetValue id with

@@ -12,11 +12,12 @@ let progressFragment (stateText: string) (detail: string) =
         ]
     ]
     |> render
-let errorFragment (email: string) (step: string) (message: string) =
+let errorFragmentWithDiagnostics supportEmail errors (email: string) (step: string) (message: string) =
     panel [
         div [ _class "flow-card error-card" ] [
             h1 [] [ str "Nie udało się przygotować analizy" ]
             p [ _class "error" ] [ str $"Analiza nie powiodła się na etapie: {step}. {message}" ]
+            yield! Bolt.Web.Views.Diagnostics.nodes supportEmail false errors
             form [ flag "ws-send" ] [
                 input [ _type "hidden"; _name "msgType"; _value "start-analysis" ]
                 input [ _type "hidden"; _name "email"; _value email ]
@@ -25,3 +26,5 @@ let errorFragment (email: string) (step: string) (message: string) =
         ]
     ]
     |> render
+
+let errorFragment email step message = errorFragmentWithDiagnostics None [||] email step message

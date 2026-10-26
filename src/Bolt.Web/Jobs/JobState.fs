@@ -13,6 +13,7 @@ type JobState =
     | RunningAnalysis
     | Done of AnalysisReport
     | Failed of step: string * message: string
+    | FailedAnalysis of AnalysisFailure
 
 type ClientMessage =
     | StartAnalysis of email: string
@@ -30,6 +31,6 @@ type PipelineDeps<'session, 'data> = {
     RequestMagicLink: 'session -> CancellationToken -> Task<Result<unit, string>>
     AuthenticateWithUrl: 'session -> string -> CancellationToken -> Task<Result<unit, string>>
     ScrapeRides: 'session -> (string -> Task) -> CancellationToken -> Task<Result<'data, string>>
-    RunAnalysis: 'data -> Task<Result<AnalysisReport, string>>
+    RunAnalysis: 'data -> Task<Result<AnalysisReport, AnalysisFailure>>
     RideCountOf: 'data -> int
 }

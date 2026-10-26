@@ -167,3 +167,28 @@ let ``display text fuzzing records accepted values and known parser failure clas
         (isNull ex || ex :? ArgumentOutOfRangeException || ex :? FormatException || ex :? OverflowException)
         |> Prop.collect (field, stage, outcome))
     |> check seed
+
+[<Theory; InlineData(101UL); InlineData(2027UL); InlineData(104729UL)>]
+let ``safe parser classifies generated malformed responses without throwing`` seed =
+    let scenarios =
+        Gen.zip
+            (Gen.elements [ true; false ])
+            (Gen.listOf (Gen.choose(0, optionalFields.Length - 1)))
+    Prop.forAll (Arb.fromGen scenarios) (fun (finished, fields) ->
+        let p, d = previousOrder (), pastOrderDetail ()
+        if not finished then mutate "state" (Some "\"cancelled\"") p |> ignore
+        for index in fields do
+            let previous, path = optionalFields[index]
+            mutate path None (if previous then p else d) |> ignore
+        let raw = rawOrder 123L p d
+        let ride = RideFactory.parseOrder raw
+        match ride.Data with
+        | Bolt.Models.RideType.Error error ->
+            finished && not (List.isEmpty fields)
+            && error.OrderId = raw.OrderId
+            && not (String.IsNullOrWhiteSpace error.StackTrace)
+            && error.PreviousOrder.GetRawText() = raw.PreviousOrder.GetRawText()
+            && error.PastOrderDetail.GetRawText() = raw.PastOrderDetail.GetRawText()
+        | Bolt.Models.RideType.Finished _ -> finished && List.isEmpty fields
+        | Bolt.Models.RideType.DidNotHappen _ -> not finished)
+    |> check seed

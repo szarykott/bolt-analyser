@@ -198,8 +198,12 @@ let scrapeRides
                       Profile = profile
                       ActivityHours = activity
                       OrderHistory = history
-                      PreviousOrders = previous |> Array.map Json.deserializeElement<PreviousOrder>
-                      PastOrderDetails = details |> Array.map Json.deserializeElement<PastOrderDetail>
+                      Orders =
+                        Array.map3 (fun historyEntry p d ->
+                            let handle = Json.deserializeNode<HistoryOrderHandle> historyEntry
+                            { OrderId = handle.OrderHandle.OrderId
+                              PreviousOrder = p
+                              PastOrderDetail = d }) history previous details
                       SkippedOrders = skipped }
 #if DEBUG
                 DriverProfileRepository.saveUnstructuredDangerous email profile

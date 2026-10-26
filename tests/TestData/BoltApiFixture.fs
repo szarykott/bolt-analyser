@@ -1,6 +1,7 @@
 module Bolt.Tests.BoltApiFixture
 
 open System.Text.Json.Nodes
+open System.Text.Json
 open Bolt.Infrastrucutre.Serialization
 open Bolt.Models.BoltApi
 
@@ -70,3 +71,8 @@ let mutate (path: string) (replacement: string option) (node: JsonNode) =
     | _, Some json -> parent[key] <- JsonNode.Parse json
     | _, None -> parent.AsObject().Remove key |> ignore
     node
+
+let rawOrder id (previous: JsonNode) (detail: JsonNode) : RawOrder =
+    { OrderId = id
+      PreviousOrder = Json.deserialize<JsonElement> (previous.ToJsonString())
+      PastOrderDetail = Json.deserialize<JsonElement> (detail.ToJsonString()) }

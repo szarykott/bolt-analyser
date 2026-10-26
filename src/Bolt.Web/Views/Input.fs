@@ -73,6 +73,9 @@ tbody tr:hover { background: #fff9f3; }
 .report-notice { padding: 1.25rem; margin-top: 1.5rem; border: 1px solid #edd9aa; border-radius: 0.8rem; background: #fffaf0; }
 .report-notice h2 { margin-bottom: 0.5rem; }
 .report-notice ul { margin-bottom: 0; padding-left: 1.25rem; }
+.report-notice details { margin-top: 1rem; }
+.report-notice summary { cursor: pointer; overflow-wrap: anywhere; }
+.diagnostic-json { overflow: auto; max-height: 24rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 650px) {
   .app-shell { padding: 1.25rem 1rem 2.5rem; }
   .exported-report #report-content { padding: 1.25rem 1rem 2.5rem; }
