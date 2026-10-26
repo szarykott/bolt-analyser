@@ -329,3 +329,120 @@ let ``empty history produces an empty successful scrape`` () : Task =
         Assert.Equal(0, previousRequests)
         Assert.Equal(0, detailRequests)
     }
+
+let private scrapeMutated historyBody corruptedBody =
+    task {
+        let mutable historyRequests = 0
+        let mutable previousRequests = 0
+        let mutable detailRequests = 0
+        let send (request: HttpRequestMessage) ct =
+            task {
+                let! id = if isNull request.Content then Task.FromResult 0L else orderId request ct
+                let data =
+                    match request.RequestUri.AbsolutePath with
+                    | "/driver/getDriverProfile" | "/orderDriver/getActivityHours" -> "{}"
+                    | "/orderDriver/v1/getOrderHistoryPaginated" ->
+                        historyRequests <- historyRequests + 1
+                        historyBody
+                    | "/orderDriver/v1/getPreviousOrder" ->
+                        Interlocked.Increment(&previousRequests) |> ignore
+                        (previousOrder ()).ToJsonString()
+                    | "/driver/getPastOrderDetails" ->
+                        Interlocked.Increment(&detailRequests) |> ignore
+                        (pastOrderDetail ()).ToJsonString()
+                    | path -> failwithf "Unexpected path %s" path
+                let body =
+                    if id = 2L && request.RequestUri.AbsolutePath.Contains("getPreviousOrder") then
+                        corruptedBody |> Option.defaultValue ("{\"code\":0,\"message\":\"ok\",\"data\":" + data + "}")
+                    else "{\"code\":0,\"message\":\"ok\",\"data\":" + data + "}"
+                // Bound broken pagination using the stub, since production ignores scrape cancellation here.
+                let status = if historyRequests > 3 then HttpStatusCode.TooManyRequests else HttpStatusCode.OK
+                return new HttpResponseMessage(status, Content = new StringContent(body, Encoding.UTF8, "application/json"))
+            }
+        let cfg = config send
+        use client = cfg.HttpClient
+        let prior = Environment.GetEnvironmentVariable "BOLT_STORAGE_ROOT"
+        let root = Path.Combine(Path.GetTempPath(), "bolt-aggressive-" + Guid.NewGuid().ToString "N")
+        Environment.SetEnvironmentVariable("BOLT_STORAGE_ROOT", root)
+        try
+            let mutable result = None
+            let mutable thrown = None
+            try
+                let! value = scrapeRides { Config = cfg; Email = "mutation@example.test" } noProgress CancellationToken.None
+                result <- Some value
+            with ex -> thrown <- Some ex
+            return result, thrown, (historyRequests, previousRequests, detailRequests)
+        finally
+            Environment.SetEnvironmentVariable("BOLT_STORAGE_ROOT", prior)
+            if Directory.Exists root then Directory.Delete(root, true)
+    }
+
+let private historyEntry id = $"""{{"order_handle":{{"order_id":{id},"city_id":1,"order_system":"bolt"}}}}"""
+let private mixedHistory = "{\"orders\":[" + historyEntry 1 + "," + historyEntry 2 + "]}"
+
+[<Theory>]
+[<InlineData("null")>]
+[<InlineData("{}")>]
+[<InlineData("true")>]
+[<InlineData("{\"order_handle\":null}")>]
+[<InlineData("{\"order_handle\":{\"order_id\":\"oops\",\"city_id\":1,\"order_system\":\"bolt\"}}")>]
+let ``known gap one malformed history entry throws away a valid history without diagnostics`` entry : Task =
+    task {
+        let history = "{\"orders\":[" + historyEntry 1 + "," + entry + "]}"
+        let! result, thrown, (_, previous, details) = scrapeMutated history None
+        Assert.True(result.IsNone)
+        Assert.IsType<JsonException>(thrown.Value) |> ignore
+        Assert.Equal(0, previous)
+        Assert.Equal(0, details)
+    }
+
+[<Theory>]
+[<InlineData("{")>]
+[<InlineData("")>]
+[<InlineData("null")>]
+[<InlineData("{\"code\":0}")>]
+[<InlineData("{\"code\":\"oops\",\"message\":\"ok\",\"data\":{}}")>]
+let ``known gap malformed HTTP body is skipped without its original payload or stack trace`` body : Task =
+    task {
+        let! result, thrown, (_, previous, details) = scrapeMutated mixedHistory (Some body)
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Error error -> failwithf "Expected the valid course to survive: %s" error
+        | Ok data ->
+            Assert.Single data.Orders |> ignore
+            Assert.Single data.SkippedOrders |> ignore
+            Assert.Equal(2L, data.SkippedOrders[0].OrderId)
+            Assert.False(String.IsNullOrWhiteSpace data.SkippedOrders[0].Reason)
+            match (Bolt.ETL.RideFactory.parseOrder data.Orders[0]).Data with
+            | Bolt.Models.RideType.Finished _ -> ()
+            | _ -> failwith "The remaining course should be valid"
+        Assert.Equal(4, previous)
+        Assert.Equal(1, details)
+    }
+
+[<Fact>]
+let ``known gap all malformed HTTP bodies end the job without downloadable diagnostics`` () : Task =
+    task {
+        let history = "{\"orders\":[" + historyEntry 2 + "]}"
+        let! result, thrown, (_, previous, details) = scrapeMutated history (Some "{")
+        Assert.True(thrown.IsNone)
+        match result.Value with
+        | Ok _ -> failwith "Expected all requests to fail"
+        | Error error -> Assert.StartsWith("Nie udało się pobrać żadnego kursu:", error)
+        Assert.Equal(3, previous)
+        Assert.Equal(0, details)
+    }
+
+[<Fact>]
+let ``known gap repeated cursor loops until the stub budget rejects another page`` () : Task =
+    task {
+        let history = "{\"cursor\":17,\"orders\":[" + historyEntry 1 + "]}"
+        let! result, thrown, (pages, previous, details) = scrapeMutated history None
+        Assert.True(thrown.IsNone)
+        Assert.Equal(4, pages)
+        Assert.Equal(0, previous)
+        Assert.Equal(0, details)
+        match result.Value with
+        | Ok _ -> failwith "Repeated cursor should hit the stub request budget"
+        | Error error -> Assert.Contains("HttpError", error)
+    }

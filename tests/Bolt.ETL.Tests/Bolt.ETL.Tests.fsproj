@@ -15,6 +15,8 @@
 
     <ItemGroup>
         <Compile Include="../TestData/BoltApiFixture.fs" Link="BoltApiFixture.fs" />
+        <Compile Include="../TestData/ApiMutations.fs" Link="ApiMutations.fs" />
+        <Compile Include="ApiMutation.Tests.fs" />
         <Compile Include="ApiInput.Tests.fs" />
         <Compile Include="ApiInputProperties.Tests.fs" />
         <Compile Include="Geo/DistrictAssignment.Tests.fs" />

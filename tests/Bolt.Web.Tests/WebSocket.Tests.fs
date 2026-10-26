@@ -408,3 +408,22 @@ let ``diagnostics disappear when the disconnected session expires`` () =
         expired <- response.StatusCode = Net.HttpStatusCode.NotFound
         if not expired then Task.Delay(20).GetAwaiter().GetResult()
     Assert.True(expired, "The disconnected session should release its diagnostics")
+
+[<Theory; InlineData(false); InlineData(true)>]
+let ``known gap render failure loses already captured diagnostics before publishing them`` allNoise =
+    let clusters =
+        if allNoise then { report.PickupClusters with Labels = [| -1 |]; Clusters = [||]; NoiseCount = 1 }
+        else { report.PickupClusters with Labels = [||] }
+    let badReport =
+        { report with
+            RideErrors = [| rideError |]
+            PickupClusters = clusters }
+    let deps = { fakeDeps with RunAnalysis = fun _ -> Task.FromResult(Ok badReport) }
+    use factory = makeFactoryWith deps
+    let cookie = sessionCookie factory
+    use socket = connectWithCookie factory cookie
+    sendText socket """{"msgType":"start-analysis","email":"a@b.pl"}"""
+    let html = receiveUntil socket "wewnętrzny"
+    Assert.DoesNotContain("diagnostics.zip", html)
+    use response = download factory (Some cookie)
+    Assert.Equal(Net.HttpStatusCode.NotFound, response.StatusCode)

@@ -68,11 +68,13 @@ let mutate (path: string) (replacement: string option) (node: JsonNode) =
     let key = Array.last segments
     match parent, replacement with
     | (:? JsonArray as array), Some json -> array[int key] <- JsonNode.Parse json
+    | (:? JsonArray as array), None -> array.RemoveAt(int key)
     | _, Some json -> parent[key] <- JsonNode.Parse json
     | _, None -> parent.AsObject().Remove key |> ignore
     node
 
 let rawOrder id (previous: JsonNode) (detail: JsonNode) : RawOrder =
+    let json (node: JsonNode) = if isNull node then "null" else node.ToJsonString()
     { OrderId = id
-      PreviousOrder = Json.deserialize<JsonElement> (previous.ToJsonString())
-      PastOrderDetail = Json.deserialize<JsonElement> (detail.ToJsonString()) }
+      PreviousOrder = Json.deserialize<JsonElement> (json previous)
+      PastOrderDetail = Json.deserialize<JsonElement> (json detail) }
