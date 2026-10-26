@@ -7,12 +7,16 @@
 
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.4" />
+        <PackageReference Include="FsCheck.Xunit" Version="3.6.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="../TestData/BoltApiFixture.fs" Link="BoltApiFixture.fs" />
+        <Compile Include="ApiInput.Tests.fs" />
+        <Compile Include="ApiInputProperties.Tests.fs" />
         <Compile Include="Geo/DistrictAssignment.Tests.fs" />
         <Compile Include="PerRide1.Tests.fs" />
         <Compile Include="PerRide2.Tests.fs" />
@@ -22,6 +26,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\src\Bolt.Infrastructure\Bolt.Infrastructure.fsproj" />
         <ProjectReference Include="..\..\src\Bolt.ETL\Bolt.ETL.fsproj" />
         <ProjectReference Include="..\..\src\Bolt.Models\Bolt.Models.fsproj" />
     </ItemGroup>

@@ -13,6 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="../TestData/BoltApiFixture.fs" Link="BoltApiFixture.fs" />
         <Compile Include="Weather.Tests.fs" />
         <Compile Include="MeteoCoverage.Tests.fs" />
         <Compile Include="ScrapePipeline.Tests.fs" />

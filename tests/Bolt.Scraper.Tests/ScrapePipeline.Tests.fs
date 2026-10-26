@@ -1,6 +1,7 @@
 module Bolt.Scraper.Tests.ScrapePipelineTests
 
 open System
+open System.IO
 open System.Net
 open System.Net.Http
 open System.Text
@@ -12,6 +13,7 @@ open Bolt.Models.BoltApi
 open Bolt.Scraper.BoltApi.ApiModels
 open Bolt.Scraper.BoltApi.Tokens
 open Bolt.Scraper.ScrapePipeline
+open Bolt.Tests.BoltApiFixture
 
 type private StubHandler(send: HttpRequestMessage -> CancellationToken -> Task<HttpResponseMessage>) =
     inherit HttpMessageHandler()
@@ -193,4 +195,125 @@ let ``cancellation aborts pending detail requests`` () : Task =
             ()
         with :? OperationCanceledException -> canceled <- true
         Assert.True(canceled)
+    }
+
+// These tests exercise scrapeRides, including its final typed deserialization.
+// The temporary root isolates persistence performed by development builds.
+let private scrapeSynthetic scenario =
+    task {
+        let previous, detail = previousOrder (), pastOrderDetail ()
+        match scenario with
+        | "missing-payment" -> mutate "payment" None detail |> ignore
+        | "bad-payment-text" -> mutate "payment/items/0/trailing_component/text" (Some "\"\"") detail |> ignore
+        | "bad-distance" -> mutate "ride_distance_str" (Some "\"\"") previous |> ignore
+        | "missing-stops" -> mutate "stops" None previous |> ignore
+        | _ -> ()
+        let mutable previousRequests = 0
+        let mutable detailRequests = 0
+        let response data =
+            new HttpResponseMessage(HttpStatusCode.OK,
+                Content = new StringContent("{\"code\":0,\"message\":\"ok\",\"data\":" + data + "}", Encoding.UTF8, "application/json"))
+        let send (request: HttpRequestMessage) _ =
+            let data =
+                match request.RequestUri.AbsolutePath with
+                | "/driver/getDriverProfile"
+                | "/orderDriver/getActivityHours" -> "{}"
+                | "/orderDriver/v1/getOrderHistoryPaginated" ->
+                    match scenario with
+                    | "null-history" -> "{\"orders\":null}"
+                    | "missing-history" -> "{}"
+                    | "empty-history" -> "{\"orders\":[]}"
+                    | _ -> """{"orders":[{"order_handle":{"order_id":1,"city_id":1,"order_system":"bolt"}}]}"""
+                | "/orderDriver/v1/getPreviousOrder" ->
+                    Interlocked.Increment(&previousRequests) |> ignore
+                    if scenario = "null-order" then "null" else previous.ToJsonString()
+                | "/driver/getPastOrderDetails" ->
+                    Interlocked.Increment(&detailRequests) |> ignore
+                    detail.ToJsonString()
+                | path -> failwithf "Unexpected synthetic request: %s" path
+            Task.FromResult(response data)
+        let cfg = config send
+        use client = cfg.HttpClient
+        let progress = ResizeArray<ScrapeProgress>()
+        let report event = progress.Add event; Task.CompletedTask
+        let root = Path.Combine(Path.GetTempPath(), "bolt-input-tests-" + Guid.NewGuid().ToString "N")
+        let priorRoot = Environment.GetEnvironmentVariable "BOLT_STORAGE_ROOT"
+        Environment.SetEnvironmentVariable("BOLT_STORAGE_ROOT", root)
+        try
+            let! result = scrapeRides { Config = cfg; Email = "synthetic@example.com" } report CancellationToken.None
+            return result, List.ofSeq progress, previousRequests, detailRequests
+        finally
+            Environment.SetEnvironmentVariable("BOLT_STORAGE_ROOT", priorRoot)
+            if Directory.Exists root then Directory.Delete(root, true)
+    }
+
+[<Theory>]
+[<InlineData("valid")>]
+[<InlineData("missing-payment")>]
+[<InlineData("bad-payment-text")>]
+let ``scraping can succeed with data that later crashes ride conversion`` scenario : Task =
+    task {
+        let! result, progress, previousRequests, detailRequests = scrapeSynthetic scenario
+        match result with
+        | Error error -> failwithf "Unexpected scrape error: %s" error
+        | Ok data ->
+            Assert.Single data.PreviousOrders |> ignore
+            Assert.Single data.PastOrderDetails |> ignore
+            Assert.Empty data.SkippedOrders
+            if scenario = "missing-payment" then Assert.True(data.PastOrderDetails[0].Payment.IsNone)
+            if scenario = "bad-payment-text" then
+                Assert.Equal("", data.PastOrderDetails[0].Payment.Value.Items[0].TrailingComponent.Text)
+        Assert.Contains(ScrapingOrderDetails(1, 1), progress)
+        Assert.Equal(1, previousRequests)
+        Assert.Equal(1, detailRequests)
+    }
+
+[<Theory>]
+[<InlineData("bad-distance")>]
+[<InlineData("missing-stops")>]
+let ``malformed order fails after fetch completion without retrying or skipping it`` scenario : Task =
+    task {
+        let! result, progress, previousRequests, detailRequests = scrapeSynthetic scenario
+        match result with
+        | Ok _ -> failwith "Expected typed deserialization to fail"
+        | Error error -> Assert.StartsWith("Could not parse scraped data:", error)
+        Assert.Contains(ScrapingOrderDetails(1, 1), progress)
+        Assert.Equal(1, previousRequests)
+        Assert.Equal(1, detailRequests)
+    }
+
+[<Fact>]
+let ``null order data is rejected at the envelope and retried three times`` () : Task =
+    task {
+        let! result, progress, previousRequests, detailRequests = scrapeSynthetic "null-order"
+        match result with
+        | Ok _ -> failwith "Expected all orders to be skipped"
+        | Error error -> Assert.StartsWith("Nie udało się pobrać żadnego kursu:", error)
+        Assert.True(progress |> List.exists (function ScrapingOrderFailed(1, 1, 1L, _) -> true | _ -> false))
+        Assert.Equal(3, previousRequests)
+        Assert.Equal(0, detailRequests)
+    }
+
+[<Theory; InlineData("null-history"); InlineData("missing-history")>]
+let ``invalid history fails before fetching details`` scenario : Task =
+    task {
+        let! result, _, previousRequests, detailRequests = scrapeSynthetic scenario
+        match result with
+        | Ok _ -> failwith "Expected invalid history to fail"
+        | Error error -> Assert.Contains("DeserializationError", error)
+        Assert.Equal(0, previousRequests)
+        Assert.Equal(0, detailRequests)
+    }
+
+[<Fact>]
+let ``empty history produces an empty successful scrape`` () : Task =
+    task {
+        let! result, _, previousRequests, detailRequests = scrapeSynthetic "empty-history"
+        match result with
+        | Error error -> failwithf "Unexpected scrape error: %s" error
+        | Ok data ->
+            Assert.Empty data.PreviousOrders
+            Assert.Empty data.PastOrderDetails
+        Assert.Equal(0, previousRequests)
+        Assert.Equal(0, detailRequests)
     }
